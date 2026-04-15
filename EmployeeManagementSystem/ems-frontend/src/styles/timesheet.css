@@ -1,0 +1,78 @@
+/* src/styles/timesheet.css */
+
+.timesheet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.timesheet-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.timesheet-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.timesheet-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.timesheet-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.timesheet-form { width: 100%; }
+
+.timesheet-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.timesheet-grid th {
+  background: var(--bg-tertiary);
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.timesheet-grid td {
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.timesheet-hour-input {
+  width: 64px !important;
+  text-align: center;
+  padding: 6px 8px !important;
+  font-size: 13px !important;
+}
+
+.timesheet-hour-input::-webkit-inner-spin-button,
+.timesheet-hour-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.timesheet-hour-input[type=number] { -moz-appearance: textfield; }

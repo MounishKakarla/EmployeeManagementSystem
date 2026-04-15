@@ -1,0 +1,25 @@
+/* src/styles/holiday.css */
+
+.holiday-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Year grid: 4 columns of mini-month cards ───────────────────────────────── */
+.holiday-year-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+}
+
+.month-card {
+  padding: 16px;
+}
+
+/* ── 7-column mini calendar inside each month card ─────────────────────────── */
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}

@@ -1,0 +1,7 @@
+/* src/styles/auditlog.css */
+
+.auditlog-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}

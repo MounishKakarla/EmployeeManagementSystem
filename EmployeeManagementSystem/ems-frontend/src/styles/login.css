@@ -1,0 +1,23 @@
+.login-page{display:flex;min-height:100vh}
+.login-left{flex:1;background:linear-gradient(135deg,#1a0a00 0%,#7c2d12 50%,var(--accent) 100%);padding:40px;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:300px}
+.login-bg-circle{position:absolute;border-radius:50%;opacity:0.1;pointer-events:none}
+.login-bg-circle-1{width:500px;height:500px;background:white;top:-200px;right:-200px}
+.login-bg-circle-2{width:300px;height:300px;background:white;bottom:-100px;left:-100px}
+.login-back-link{display:inline-flex;align-items:center;gap:6px;color:rgba(255,255,255,0.7);font-size:13px;text-decoration:none;margin-bottom:auto;padding:6px 10px;border-radius:8px;transition:all 0.15s;width:fit-content;position:relative;z-index:1}
+.login-back-link:hover{color:white;background:rgba(255,255,255,0.1)}
+.login-brand{position:relative;z-index:1;padding-bottom:40px}
+.login-brand-title{font-family:var(--font-display);font-size:36px;font-weight:900;color:white;margin-bottom:16px}
+.login-brand-desc{color:rgba(255,255,255,0.75);font-size:15px;line-height:1.7;margin-bottom:32px;max-width:360px}
+.login-checklist{display:flex;flex-direction:column;gap:12px}
+.login-check-item{display:flex;align-items:flex-start;gap:12px;color:rgba(255,255,255,0.85);font-size:14px;line-height:1.5}
+.login-check-icon{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.login-right{width:460px;min-width:320px;display:flex;flex-direction:column;justify-content:center;padding:60px 48px;background:var(--bg-card);position:relative}
+@media(max-width:700px){.login-left{display:none}.login-right{width:100%;padding:40px 24px}}
+.login-theme-btn{position:absolute;top:20px;right:20px}
+.login-form-header{margin-bottom:32px}
+.login-form-header h2{font-family:var(--font-display);font-size:28px;font-weight:800;margin-bottom:8px}
+.login-form-header p{color:var(--text-muted);font-size:14px}
+.login-form{display:flex;flex-direction:column;gap:4px}
+.login-role-legend{margin-top:32px;padding-top:24px;border-top:1px solid var(--border)}
+.login-role-legend-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;margin-bottom:12px}
+.login-role-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;color:var(--text-secondary)}

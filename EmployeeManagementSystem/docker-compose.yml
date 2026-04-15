@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+  database:
+    image: postgres:15
+    container_name: ems-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: EMSNew
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d EMSNew"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./ems-backend
+      dockerfile: Dockerfile
+    container_name: ems-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/EMSNew
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=1234
+    depends_on:
+      database:
+        condition: service_healthy
+
+  chatbot:
+    build:
+      context: ./ems-chatbot
+      dockerfile: Dockerfile
+    container_name: ems-chatbot
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=EMSNew
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./ems-frontend
+      dockerfile: Dockerfile
+    container_name: ems-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8080
+      - VITE_CHATBOT_API_URL=http://localhost:8000/api/chatbot
+      - VITE_PARSER_URL=http://localhost:8000
+      - BACKEND_URL=http://backend:8080
+    depends_on:
+      - backend
+      - chatbot
+
+volumes:
+  postgres_data:

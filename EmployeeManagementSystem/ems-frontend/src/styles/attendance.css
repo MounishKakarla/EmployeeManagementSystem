@@ -1,0 +1,139 @@
+/* src/styles/attendance.css */
+
+/* ── Page wrapper ───────────────────────────────────────────────────────────── */
+.attendance-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Tab switcher ───────────────────────────────────────────────────────────── */
+.attendance-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.attendance-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.attendance-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.attendance-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.attendance-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Period picker ──────────────────────────────────────────────────────────── */
+.attendance-period-picker {
+  display: flex;
+  align-items: center;
+}
+
+/* ── Summary grid ───────────────────────────────────────────────────────────── */
+.attendance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 16px;
+}
+
+/* ── Attendance % hero card ─────────────────────────────────────────────────── */
+.attendance-percentage-card {
+  background: var(--bg-card);
+}
+
+/* ── Calendar grid ──────────────────────────────────────────────────────────── */
+.attendance-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+/* ── Check-in widget ────────────────────────────────────────────────────────── */
+.checkin-widget {
+  padding: 20px 24px;
+}
+
+.checkin-widget-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.checkin-left {
+  min-width: 180px;
+  flex: 1;
+}
+
+.checkin-times {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.checkin-time-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.checkin-time-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.checkin-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .checkin-widget-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .checkin-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .attendance-calendar-grid {
+    gap: 4px;
+  }
+}
