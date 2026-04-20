@@ -71,12 +71,12 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .description(dto.getDescription())
                 .build();
 
-        Employee saved = employeeRepository.save(employee);
+        Employee saved = employeeRepository.saveAndFlush(employee);
         String rawPassword = GeneratePassword.generatePassword(8);
 
         User user = User.builder().employee(saved)
                 .password(passwordEncoder.encode(rawPassword)).build();
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
 
         Set<UserRoles> userRoles = dto.getRoles().stream().map(roleEnum -> {
             Roles role = roleRepository.findByRole(roleEnum)

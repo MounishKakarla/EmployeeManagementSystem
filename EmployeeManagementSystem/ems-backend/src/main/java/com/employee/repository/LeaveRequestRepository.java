@@ -53,4 +53,17 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("empId")     String empId,
             @Param("leaveType") LeaveType leaveType,
             @Param("year")      int year);
+
+    /**
+     * Manager-scoped pending queue: only PENDING requests from employees in
+     * the given department, oldest first (FIFO fairness).
+     */
+    @Query("SELECT l FROM LeaveRequest l " +
+           "WHERE l.status = 'PENDING' " +
+           "AND UPPER(l.employee.department) = UPPER(:department) " +
+           "ORDER BY l.createdAt ASC")
+    Page<LeaveRequest> findPendingByDepartment(
+            @Param("department") String department,
+            Pageable pageable);
 }
+

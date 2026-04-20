@@ -8,7 +8,7 @@ const BALANCE_ITEMS = [
     totalKey: 'annualTotal', usedKey: 'annualUsed', remKey: 'annualRemaining',
     cfKey: 'annualCarriedForward', accKey: 'annualAccruedThisYear',
     carryForward: true,
-    policy: '15 days/year · 1.25 days/month · Unused balance carries forward (max 15 days)',
+    policy: '15 days/year · 1.25 days/month · Unused balance carries forward (max 30 days)',
   },
   {
     key: 'sick', label: 'Sick Leave',
@@ -25,6 +25,30 @@ const BALANCE_ITEMS = [
     cfKey: null, accKey: null,
     carryForward: false,
     policy: '4 days/year · Pro-rated from joining month · Resets Jan 1 (no carry-forward)',
+  },
+  {
+    key: 'maternity', label: 'Maternity Leave',
+    icon: Heart, color: 'var(--success)', bg: 'var(--success-light)',
+    totalKey: 'maternityTotal', usedKey: 'maternityUsed', remKey: 'maternityRemaining',
+    cfKey: null, accKey: null,
+    carryForward: false,
+    policy: '182 days per event (Maternity Benefit Act)',
+  },
+  {
+    key: 'paternity', label: 'Paternity Leave',
+    icon: Info, color: 'var(--info)', bg: 'var(--info-light)',
+    totalKey: 'paternityTotal', usedKey: 'paternityUsed', remKey: 'paternityRemaining',
+    cfKey: null, accKey: null,
+    carryForward: false,
+    policy: '15 days per event',
+  },
+  {
+    key: 'compoff', label: 'Compensatory Off',
+    icon: TrendingUp, color: 'var(--warning)', bg: 'var(--warning-light)',
+    totalKey: 'compOffEarned', usedKey: 'compOffUsed', remKey: 'compOffRemaining',
+    cfKey: null, accKey: null,
+    carryForward: true,
+    policy: 'Earned by working holidays',
   },
   {
     key: 'unpaid', label: 'Unpaid Used',
@@ -61,6 +85,10 @@ export default function LeaveBalanceCards({ balance }) {
       <div className="leave-balance-grid">
         {BALANCE_ITEMS.map(({ key, label, icon: Icon, color, bg, totalKey, usedKey, remKey, cfKey, accKey, carryForward, policy }) => {
           const total     = totalKey  ? getField(balance, totalKey)  : null
+          
+          if (key === 'maternity' && total == null) return null
+          if (key === 'paternity' && total == null) return null
+
           const used      = getField(balance, usedKey)  ?? 0
           const remAlias  = remKey === 'annualRemaining'
             ? 'remainingAnnual'

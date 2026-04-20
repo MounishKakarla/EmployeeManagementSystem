@@ -48,6 +48,53 @@ export function InlineField({ label, icon: Icon, value, onSave, disabled, multil
   )
 }
 
+export function InlineSelectField({ label, icon: Icon, value, onSave, disabled, options, danger }) {
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState(value||'')
+  const [saving,  setSaving]  = useState(false)
+
+  const handleSave = async () => {
+    if (draft===value) { setEditing(false); return }
+    setSaving(true)
+    try { await onSave(draft); setEditing(false) }
+    catch {}
+    finally { setSaving(false) }
+  }
+
+  const iconColor = danger?'var(--danger)':'var(--text-muted)'
+  const iconBg    = danger?'var(--danger-light)':'var(--bg-tertiary)'
+
+  return (
+    <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+      <div style={{ width:32, height:32, flexShrink:0, marginTop:2, background:iconBg, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <Icon size={14} color={iconColor}/>
+      </div>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:12, color:danger?'var(--danger)':'var(--text-muted)', marginBottom:3 }}>{label}</div>
+        {disabled ? (
+          <div style={{ fontSize:14, fontWeight:500, color:'var(--text-muted)', padding:'2px 0', wordBreak:'break-all' }}>{value||<span style={{ fontStyle:'italic', fontWeight:400 }}>—</span>}</div>
+        ) : editing ? (
+          <div style={{ display:'flex', gap:6, alignItems:'flex-start' }}>
+            <select className="form-input" value={draft} onChange={e=>setDraft(e.target.value)} style={{ fontSize:13, padding:'6px 10px' }}>
+              <option value="">{label}...</option>
+              {options.map(o=><option key={o} value={o}>{o}</option>)}
+            </select>
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary btn-sm" style={{ padding:'6px 10px', flexShrink:0 }}>
+              {saving?<span className="spinner" style={{ width:12, height:12 }}/>:<Check size={12}/>}
+            </button>
+            <button onClick={()=>{setDraft(value||'');setEditing(false)}} className="btn btn-secondary btn-sm" style={{ padding:'6px 10px', flexShrink:0 }}><X size={12}/></button>
+          </div>
+        ) : (
+          <div className="inline-field-row">
+            <span style={{ fontSize:14, fontWeight:500, wordBreak:'break-all', color:danger?'var(--danger)':'var(--text-primary)' }}>{value||<span style={{ color:'var(--text-muted)', fontStyle:'italic', fontWeight:400 }}>—</span>}</span>
+            <button onClick={()=>{setDraft(value||'');setEditing(true)}} className="inline-edit-btn" style={{ background:'none', border:'none', cursor:'pointer', opacity:0, padding:2, flexShrink:0 }} title={`Edit ${label}`}><Pencil size={11} color="var(--text-muted)"/></button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function DetailItem({ icon: Icon, label, value, danger }) {
   return (
     <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
@@ -95,6 +142,7 @@ export default function ContactInfo({ employee, canEdit, isInactiveView, patch, 
             <InlineField icon={Mail}   label="Personal Email" value={employee.personalEmail} onSave={patch('personalEmail')} disabled={!canEdit}/>
             <InlineField icon={Phone}  label="Phone"          value={employee.phoneNumber}   onSave={patch('phoneNumber')}   disabled={!canEdit}/>
             <InlineField icon={MapPin} label="Address"        value={employee.address}        onSave={patch('address')}       disabled={!canEdit} multiline/>
+            <InlineSelectField icon={User} label="Gender"     value={employee.gender}         onSave={patch('gender')}        disabled={!canEdit} options={['MALE','FEMALE','OTHER']}/>
           </div>
         </div>
         <div className="card">

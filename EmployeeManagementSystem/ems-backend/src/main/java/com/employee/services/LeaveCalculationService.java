@@ -37,8 +37,14 @@ public class LeaveCalculationService {
 	public static final double ANNUAL_PER_MONTH = 1.25; // 15 / 12
 	public static final int ANNUAL_CARRY_CAP = 30; // max days that roll over (2 years)
 
-	public static final int SICK_FULL_YEAR = 6;
+	public static final int SICK_FULL_YEAR   = 6;
 	public static final int CASUAL_FULL_YEAR = 4;
+
+	// Maternity Benefit Act, 1961 → 182 calendar days (26 weeks)
+	public static final int MATERNITY_DAYS   = 182;
+	// Common corporate paternity policy → 15 calendar days
+	public static final int PATERNITY_DAYS   = 15;
+	// Comp-off: accrued by working holidays; initialised to 0 (granted separately per event)
 
 	/**
 	 * Build (or refresh) a LeaveBalance record for a given employee and year.
@@ -91,26 +97,71 @@ public class LeaveCalculationService {
 			existing.setAnnualCarriedForward(carryForward);
 			existing.setSickTotal(sickTotal);
 			existing.setCasualTotal(casualTotal);
+			// Maternity and Paternity are gender-gated:
+			//   FEMALE (or OTHER/unknown) → maternity only
+			//   MALE                      → paternity only
+			String gender = employee.getGender() != null ? employee.getGender().toUpperCase() : "";
+			if (!"MALE".equals(gender)) {
+				if (existing.getMaternityTotal() == null || existing.getMaternityTotal() == 0)
+					existing.setMaternityTotal(MATERNITY_DAYS);
+				existing.setPaternityTotal(0);
+			} else {
+				if (existing.getPaternityTotal() == null || existing.getPaternityTotal() == 0)
+					existing.setPaternityTotal(PATERNITY_DAYS);
+				existing.setMaternityTotal(0);
+			}
 			return existing;
 		}
 
-		return LeaveBalance.builder().employee(employee).year(year).annualTotal(annualTotal).annualUsed(0)
-				.annualCarriedForward(carryForward).sickTotal(sickTotal).sickUsed(0).casualTotal(casualTotal)
-				.casualUsed(0).unpaidUsed(0).build();
+		String gender = employee.getGender() != null ? employee.getGender().toUpperCase() : "";
+		boolean isMale = "MALE".equals(gender);
+
+		return LeaveBalance.builder()
+				.employee(employee).year(year)
+				.annualTotal(annualTotal).annualUsed(0)
+				.annualCarriedForward(carryForward)
+				.sickTotal(sickTotal).sickUsed(0)
+				.casualTotal(casualTotal).casualUsed(0)
+				.maternityTotal(isMale ? 0 : MATERNITY_DAYS).maternityUsed(0)
+				.paternityTotal(isMale ? PATERNITY_DAYS : 0).paternityUsed(0)
+				.compOffEarned(0).compOffUsed(0)
+				.unpaidUsed(0)
+				.build();
 	}
 
 	/**
-	 * Year-end reset — called by scheduler on Jan 1 of newYear. Sick and casual do
-	 * NOT carry forward. Annual remaining carries forward (capped at 30).
+	 * Year-end reset — called by scheduler on Jan 1 of newYear.
+	 *
+	 * Sick and casual do NOT carry forward (reset to full entitlement).
+	 * Annual remaining carries forward (capped at {@link #ANNUAL_CARRY_CAP}).
+	 *
+	 * @param prevBalance may be null for brand-new employees with no previous record
 	 */
-	public LeaveBalance yearEndReset(Employee employee, LeaveBalance currentYear, int newYear) {
-		// ✅ FIX: nullSafe on getRemainingAnnual() inputs — currentYear may have NULL
-		// columns
-		int carryForward = Math.min(currentYear.getRemainingAnnual(), ANNUAL_CARRY_CAP);
+	public LeaveBalance yearEndReset(Employee employee, LeaveBalance prevBalance, int newYear) {
+		int carryForward = (prevBalance != null)
+				? Math.min(prevBalance.getRemainingAnnual(), ANNUAL_CARRY_CAP)
+				: 0;
 
-		return LeaveBalance.builder().employee(employee).year(newYear).annualTotal(ANNUAL_FULL_YEAR + carryForward)
-				.annualUsed(0).annualCarriedForward(carryForward).sickTotal(SICK_FULL_YEAR).sickUsed(0)
-				.casualTotal(CASUAL_FULL_YEAR).casualUsed(0).unpaidUsed(0).build();
+		String gender = employee.getGender() != null ? employee.getGender().toUpperCase() : "";
+		boolean isMale = "MALE".equals(gender);
+
+		return LeaveBalance.builder()
+				.employee(employee)
+				.year(newYear)
+				.annualTotal(ANNUAL_FULL_YEAR + carryForward)
+				.annualUsed(0)
+				.annualCarriedForward(carryForward)
+				.sickTotal(SICK_FULL_YEAR)
+				.sickUsed(0)
+				.casualTotal(CASUAL_FULL_YEAR)
+				.casualUsed(0)
+				.maternityTotal(isMale ? 0 : MATERNITY_DAYS)
+				.maternityUsed(0)
+				.paternityTotal(isMale ? PATERNITY_DAYS : 0)
+				.paternityUsed(0)
+				.compOffEarned(0).compOffUsed(0)
+				.unpaidUsed(0)
+				.build();
 	}
 
 	// ── Helpers ────────────────────────────────────────────────────────────────

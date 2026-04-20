@@ -45,6 +45,24 @@ public class LeaveBalance {
     @Column(name = "casual_total")            private Integer casualTotal          = 0;
     @Column(name = "casual_used")             private Integer casualUsed           = 0;
 
+    // ── Maternity Leave ───────────────────────────────────────────────────────
+    // Entitlement : 182 calendar days (as per Maternity Benefit Act, 1961)
+    // Carry-forward: NO — granted once per pregnancy; does not roll over
+    @Column(name = "maternity_total")         private Integer maternityTotal       = 0;
+    @Column(name = "maternity_used")          private Integer maternityUsed        = 0;
+
+    // ── Paternity Leave ───────────────────────────────────────────────────────
+    // Entitlement : 15 calendar days (common corporate policy)
+    // Can be split. Carry-forward: NO
+    @Column(name = "paternity_total")         private Integer paternityTotal       = 0;
+    @Column(name = "paternity_used")          private Integer paternityUsed        = 0;
+
+    // ── Compensatory Off / Comp-Off ──────────────────────────────────────────
+    // Earned when employee works on a holiday/weekend. Each such day = 1 comp-off.
+    // Carry-forward: YES but typically expires within 90 days (tracked via earned/used)
+    @Column(name = "comp_off_earned")         private Integer compOffEarned        = 0;
+    @Column(name = "comp_off_used")           private Integer compOffUsed          = 0;
+
     // ── Unpaid ────────────────────────────────────────────────────────────────
     // Unlimited but tracked for payroll/HR reporting
     @Column(name = "unpaid_used")             private Integer unpaidUsed           = 0;
@@ -56,9 +74,12 @@ public class LeaveBalance {
     public void onSave() { this.updatedAt = LocalDateTime.now(); }
 
     // ── Computed helpers ───────────────────────────────────────────────────────
-    public int getRemainingAnnual() { return Math.max(0, nullSafe(annualTotal)  - nullSafe(annualUsed));  }
-    public int getRemainingSick()   { return Math.max(0, nullSafe(sickTotal)    - nullSafe(sickUsed));    }
-    public int getRemainingCasual() { return Math.max(0, nullSafe(casualTotal)  - nullSafe(casualUsed));  }
+    public int getRemainingAnnual()    { return Math.max(0, nullSafe(annualTotal)    - nullSafe(annualUsed));    }
+    public int getRemainingSick()      { return Math.max(0, nullSafe(sickTotal)      - nullSafe(sickUsed));      }
+    public int getRemainingCasual()    { return Math.max(0, nullSafe(casualTotal)    - nullSafe(casualUsed));    }
+    public int getRemainingMaternity() { return Math.max(0, nullSafe(maternityTotal) - nullSafe(maternityUsed)); }
+    public int getRemainingPaternity() { return Math.max(0, nullSafe(paternityTotal) - nullSafe(paternityUsed)); }
+    public int getRemainingCompOff()   { return Math.max(0, nullSafe(compOffEarned)  - nullSafe(compOffUsed));   }
 
     // Defensive null guard for rows that existed before the default was applied
     private int nullSafe(Integer value) { return value != null ? value : 0; }

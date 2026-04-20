@@ -28,9 +28,24 @@ public class LeaveBalanceDTO {
     private Integer casualUsed;
     private Integer casualRemaining;
 
-    // Unpaid
+    // Maternity Leave (182 calendar days per Maternity Benefit Act, 1961)
+    private Integer maternityTotal;
+    private Integer maternityUsed;
+    private Integer maternityRemaining;
+
+    // Paternity Leave (15 calendar days — corporate policy)
+    private Integer paternityTotal;
+    private Integer paternityUsed;
+    private Integer paternityRemaining;
+
+    // Compensatory Off (earned by working on holidays/weekends)
+    private Integer compOffEarned;
+    private Integer compOffUsed;
+    private Integer compOffRemaining;
+
+    // Unpaid (unlimited — tracked for payroll)
     private Integer unpaidUsed;
 
     // Meta info
-    private String  accrualNote;  // e.g. "Accruing 1.25 days/month. Next accrual: 1 May 2025"
-}
+    private String  accrualNote;
+}

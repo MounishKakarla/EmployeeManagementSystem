@@ -7,7 +7,7 @@ import { employeeAPI } from '../../api'
 import { useUIStore } from '../../store/uiStore'
 import { formatDate } from '../../utils/dateUtils'
 import { parseApiError } from '../../utils/errorUtils'
-import { BaseInput, BaseTextarea, FormField } from './BaseComponents'
+import { BaseInput, BaseTextarea, BaseSelect, FormField } from './BaseComponents'
 import TagInput from './Taginput'
 import ResumeUploadButton from './ResumeUploadButton'
 import FocusTrap from 'focus-trap-react'
@@ -17,7 +17,7 @@ const DEPARTMENTS=['DEVELOPMENT','FINANCE','DESIGN','HR','SALES','MARKETING','SU
 const SKILL_SUGGESTIONS=['JavaScript','TypeScript','React','Node.js','Python','Java','Spring Boot','SQL','PostgreSQL','MongoDB','Docker','AWS','Git','Leadership','Communication','Agile','Scrum','Figma','Excel','Power BI']
 const ROLES=['ADMIN','MANAGER','EMPLOYEE']
 const STEPS=['Personal Info','Employment & Skills','Roles','Review']
-const STEP_FIELDS=[['name','personalEmail','companyEmail','phoneNumber','address'],['dateOfJoin','dateOfBirth'],[],[]]
+const STEP_FIELDS=[['name','personalEmail','companyEmail','phoneNumber','address','gender'],['dateOfJoin','dateOfBirth'],[],[]]
 
 export default function NewEmployeeSheet({ onClose }) {
   const queryClient=useQueryClient()
@@ -29,7 +29,7 @@ export default function NewEmployeeSheet({ onClose }) {
 
   const [step,setStep]=useState(0); const [roles,setRoles]=useState(['EMPLOYEE']); const [submitted,setSubmitted]=useState(false)
   const [departments,setDepartments]=useState([]); const [designations,setDesignations]=useState([]); const [skills,setSkills]=useState([])
-  const { register, trigger, getValues, setValue, formState:{errors} }=useForm({ defaultValues:{name:'',personalEmail:'',companyEmail:'',phoneNumber:'',address:'',dateOfJoin:'',dateOfBirth:'',description:''} })
+  const { register, trigger, getValues, setValue, formState:{errors} }=useForm({ defaultValues:{name:'',personalEmail:'',companyEmail:'',phoneNumber:'',address:'',gender:'',dateOfJoin:'',dateOfBirth:'',description:''} })
 
   const handleResumeData=(data)=>{
     if(!data)return
@@ -97,7 +97,10 @@ export default function NewEmployeeSheet({ onClose }) {
                 <BaseInput label="Company Email" icon={Mail} required type="email" placeholder="name@tektalis.com" error={errors.companyEmail?.message} {...register('companyEmail',{required:'Required',pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:'Invalid email'}})}/>
                 <BaseInput label="Personal Email" icon={Mail} required type="email" placeholder="personal@gmail.com" error={errors.personalEmail?.message} {...register('personalEmail',{required:'Required',pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:'Invalid email'}})}/>
               </div>
-              <BaseInput label="Phone Number" icon={Phone} required placeholder="+91 9876543210" error={errors.phoneNumber?.message} {...register('phoneNumber',{required:'Required',pattern:{value:/^[0-9+\- ]{8,15}$/,message:'Invalid phone'}})}/>
+              <div className="grid-2">
+                <BaseInput label="Phone Number" icon={Phone} required placeholder="+91 9876543210" error={errors.phoneNumber?.message} {...register('phoneNumber',{required:'Required',pattern:{value:/^[0-9+\- ]{8,15}$/,message:'Invalid phone'}})}/>
+                <BaseSelect label="Gender" required options={['MALE','FEMALE','OTHER']} error={errors.gender?.message} {...register('gender',{required:'Gender is required'})}/>
+              </div>
               <BaseInput label="Address" icon={MapPin} required placeholder="Full address" error={errors.address?.message} {...register('address',{required:'Address is required'})}/>
             </div>}
 
@@ -127,7 +130,7 @@ export default function NewEmployeeSheet({ onClose }) {
             </div>}
 
             {step===3&&<div style={{display:'flex',flexDirection:'column',gap:16}}>
-              {[['Personal Information',[['Full Name',values.name],['Company Email',values.companyEmail],['Personal Email',values.personalEmail],['Phone',values.phoneNumber],['Address',values.address]]],
+              {[['Personal Information',[['Full Name',values.name],['Gender',values.gender],['Company Email',values.companyEmail],['Personal Email',values.personalEmail],['Phone',values.phoneNumber],['Address',values.address]]],
                 ['Employment Details',[['Departments',''],['Designations',''],['Date of Join',formatDate(values.dateOfJoin)],['Date of Birth',formatDate(values.dateOfBirth)]]]].map(([title,rows])=>(
                 <div key={title} style={{background:'var(--bg-tertiary)',borderRadius:10,padding:'16px 20px'}}>
                   <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.9px',color:'var(--text-muted)',marginBottom:14}}>{title}</div>

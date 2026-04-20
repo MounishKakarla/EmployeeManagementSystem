@@ -59,11 +59,15 @@ public class LeaveController {
 
     // ── Admin / Manager ───────────────────────────────────────────────────────
 
-    /** GET /ems/leaves/pending */
+    /** GET /ems/leaves/pending
+     *
+     * ADMIN  → returns all pending leaves across the organisation.
+     * MANAGER → returns only pending leaves from their own department.
+     */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @GetMapping("/pending")
-    public Page<LeaveRequestDTO> getPending(Pageable pageable) {
-        return leaveService.getPendingLeaves(pageable);
+    public Page<LeaveRequestDTO> getPending(Authentication auth, Pageable pageable) {
+        return leaveService.getPendingLeaves(auth.getName(), pageable);
     }
 
     /** GET /ems/leaves/all?empId=TT0001&status=APPROVED */

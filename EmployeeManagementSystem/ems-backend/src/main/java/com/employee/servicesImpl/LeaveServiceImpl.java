@@ -34,12 +34,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class LeaveServiceImpl implements LeaveService {
 
-    private final LeaveRequestRepository  leaveRepo;
-    private final LeaveBalanceRepository  balanceRepo;
-    private final EmployeeRepository      employeeRepo;
+    private final LeaveRequestRepository leaveRepo;
+    private final LeaveBalanceRepository balanceRepo;
+    private final EmployeeRepository employeeRepo;
     private final HolidayCalendarRepository holidayRepo;
     private final LeaveCalculationService calcService;
-    private final AuditService            auditService;
+    private final AuditService auditService;
 
     // ── Submit leave ───────────────────────────────────────────────────────────
     @Override
@@ -58,22 +58,30 @@ public class LeaveServiceImpl implements LeaveService {
         if (days == 0)
             throw new IllegalArgumentException("Selected date range falls entirely on weekends or public holidays.");
 
-        // Balance check — only for leave types that consume from a balance
-        if (dto.getLeaveType() == LeaveType.ANNUAL ||
-            dto.getLeaveType() == LeaveType.SICK   ||
-            dto.getLeaveType() == LeaveType.CASUAL) {
+        // Gender-gated leave types
+        String gender = emp.getGender() != null ? emp.getGender().toUpperCase() : "";
+        LeaveType lt = dto.getLeaveType();
+        if (lt == LeaveType.MATERNITY && "MALE".equals(gender))
+            throw new IllegalArgumentException("Maternity leave is not applicable for male employees.");
+        if (lt == LeaveType.PATERNITY && !"MALE".equals(gender))
+            throw new IllegalArgumentException("Paternity leave is only applicable for male employees.");
 
+        if (lt != LeaveType.UNPAID) {
             LeaveBalanceDTO balance = getBalance(empId);
-            int remaining = switch (dto.getLeaveType()) {
+            Integer remaining = switch (lt) {
                 case ANNUAL -> balance.getAnnualRemaining();
-                case SICK   -> balance.getSickRemaining();
+                case SICK -> balance.getSickRemaining();
                 case CASUAL -> balance.getCasualRemaining();
-                default     -> Integer.MAX_VALUE;
+                case MATERNITY -> balance.getMaternityRemaining();
+                case PATERNITY -> balance.getPaternityRemaining();
+                case COMPENSATORY -> balance.getCompOffRemaining();
+                default -> Integer.MAX_VALUE;
             };
-            if (days > remaining)
+            if (remaining != null && days > remaining)
                 throw new IllegalArgumentException(
-                        "Insufficient balance. Requested: " + days + " working days. " +
-                        "Available: " + remaining + " day(s).");
+                        "Insufficient " + lt.name().toLowerCase() + " balance. "
+                                + "Requested: " + days + " working days. "
+                                + "Available: " + remaining + " day(s).");
         }
 
         LeaveRequest req = LeaveRequest.builder()
@@ -84,7 +92,7 @@ public class LeaveServiceImpl implements LeaveService {
 
         auditService.log(empId, "SUBMIT_LEAVE",
                 dto.getLeaveType() + " leave " + dto.getStartDate() + " to " + dto.getEndDate()
-                + " (" + days + " working days)");
+                        + " (" + days + " working days)");
 
         return toDTO(leaveRepo.save(req));
     }
@@ -108,7 +116,7 @@ public class LeaveServiceImpl implements LeaveService {
     @Override
     @Transactional
     public LeaveRequestDTO reviewLeave(Long id, LeaveStatus action,
-                                        String reviewedBy, String reviewNotes) {
+            String reviewedBy, String reviewNotes) {
         if (action != LeaveStatus.APPROVED && action != LeaveStatus.REJECTED)
             throw new IllegalArgumentException("Action must be APPROVED or REJECTED.");
 
@@ -121,7 +129,7 @@ public class LeaveServiceImpl implements LeaveService {
         // Self-approval prevention
         if (req.getEmployee().getEmpId().equals(reviewedBy))
             throw new IllegalStateException(
-                "You cannot review your own leave request. Another Admin or Manager must approve it.");
+                    "You cannot review your own leave request. Another Admin or Manager must approve it.");
 
         req.setStatus(action);
         req.setReviewedBy(reviewedBy);
@@ -134,7 +142,7 @@ public class LeaveServiceImpl implements LeaveService {
 
         auditService.log(reviewedBy, action.name() + "_LEAVE",
                 action.name() + " leave id=" + id + " for " + req.getEmployee().getEmpId()
-                + " (" + req.getDaysRequested() + " days)");
+                        + " (" + req.getDaysRequested() + " days)");
 
         return toDTO(leaveRepo.save(req));
     }
@@ -142,7 +150,8 @@ public class LeaveServiceImpl implements LeaveService {
     // ── Balance ────────────────────────────────────────────────────────────────
     /**
      * Single unified balance method.
-     * Previously had getMyBalance() + getBalance() doing the same thing — removed duplication.
+     * Previously had getMyBalance() + getBalance() doing the same thing — removed
+     * duplication.
      * Use: getBalance(auth.getName()) for self, getBalance(anyEmpId) for admin.
      *
      * Recalculates accrual on every call so the balance is always up to date
@@ -151,12 +160,12 @@ public class LeaveServiceImpl implements LeaveService {
     @Override
     @Transactional
     public LeaveBalanceDTO getBalance(String empId) {
-        int year      = LocalDate.now().getYear();
-        int prevYear  = year - 1;
-        Employee emp  = getActive(empId);
+        int year = LocalDate.now().getYear();
+        int prevYear = year - 1;
+        Employee emp = getActive(empId);
 
         LeaveBalance existing = balanceRepo.findByEmployeeEmpIdAndYear(empId, year).orElse(null);
-        LeaveBalance prev     = balanceRepo.findByEmployeeEmpIdAndYear(empId, prevYear).orElse(null);
+        LeaveBalance prev = balanceRepo.findByEmployeeEmpIdAndYear(empId, prevYear).orElse(null);
 
         // Recompute to pick up new months as the year progresses
         LeaveBalance balance = calcService.compute(emp, year, existing, prev);
@@ -170,45 +179,92 @@ public class LeaveServiceImpl implements LeaveService {
                 emp.getDateOfJoin(), year, LocalDate.now());
         String nextAccrualNote = monthsWorked < 12
                 ? "Accruing 1.25 days/month. "
-                  + "Balance after next month: "
-                  + (int) Math.floor((monthsWorked + 1) * 1.25) + " days accrued"
+                        + "Balance after next month: "
+                        + (int) Math.floor((monthsWorked + 1) * 1.25) + " days accrued"
                 : "Full year accrual reached (15 days)";
+
+        // Determine gender-gated leave fields
+        // MALE      → paternity only (maternity fields omitted/null for frontend)
+        // FEMALE/OTHER/UNKNOWN → maternity only (paternity fields omitted/null)
+        String gender = emp.getGender() != null ? emp.getGender().toUpperCase() : "";
+        boolean isMale = "MALE".equals(gender);
 
         return LeaveBalanceDTO.builder()
                 .empId(emp.getEmpId())
                 .employeeName(emp.getName())
                 .year(year)
+                // Annual / Earned
                 .annualTotal(balance.getAnnualTotal())
                 .annualUsed(balance.getAnnualUsed())
                 .annualRemaining(balance.getRemainingAnnual())
                 .annualCarriedForward(balance.getAnnualCarriedForward())
                 .annualAccruedThisYear(annualAccruedThisYear)
+                // Sick
                 .sickTotal(balance.getSickTotal())
                 .sickUsed(balance.getSickUsed())
                 .sickRemaining(balance.getRemainingSick())
+                // Casual
                 .casualTotal(balance.getCasualTotal())
                 .casualUsed(balance.getCasualUsed())
                 .casualRemaining(balance.getRemainingCasual())
+                // Maternity — only for non-male employees
+                .maternityTotal(isMale ? null : balance.getMaternityTotal())
+                .maternityUsed(isMale ? null : balance.getMaternityUsed())
+                .maternityRemaining(isMale ? null : balance.getRemainingMaternity())
+                // Paternity — only for male employees
+                .paternityTotal(isMale ? balance.getPaternityTotal() : null)
+                .paternityUsed(isMale ? balance.getPaternityUsed() : null)
+                .paternityRemaining(isMale ? balance.getRemainingPaternity() : null)
+                // Comp-off
+                .compOffEarned(balance.getCompOffEarned())
+                .compOffUsed(balance.getCompOffUsed())
+                .compOffRemaining(balance.getRemainingCompOff())
+                // Unpaid
                 .unpaidUsed(balance.getUnpaidUsed())
                 .accrualNote(nextAccrualNote)
                 .build();
     }
 
     // ── Queries ────────────────────────────────────────────────────────────────
-    @Override public Page<LeaveRequestDTO> getMyLeaves(String empId, Pageable pageable) {
+    @Override
+    public Page<LeaveRequestDTO> getMyLeaves(String empId, Pageable pageable) {
         return leaveRepo.findByEmployeeEmpIdOrderByCreatedAtDesc(empId, pageable).map(this::toDTO);
     }
-    @Override public Page<LeaveRequestDTO> getPendingLeaves(Pageable pageable) {
-        return leaveRepo.findByStatusOrderByCreatedAtAsc(LeaveStatus.PENDING, pageable).map(this::toDTO);
+
+    /**
+     * ADMIN — sees ALL pending requests across the organisation.
+     * MANAGER — sees only pending requests from employees in their own department.
+     *
+     * @param reviewerEmpId empId of the logged-in Admin/Manager
+     */
+    @Override
+    public Page<LeaveRequestDTO> getPendingLeaves(String reviewerEmpId, Pageable pageable) {
+        Employee reviewer = getActive(reviewerEmpId);
+        boolean isAdmin = reviewer.getRoles() != null && reviewer.getRoles().stream()
+                .anyMatch(ur -> ur.getRole() != null && ur.getRole().getRole() != null
+                        && "ADMIN".equalsIgnoreCase(ur.getRole().getRole().name()));
+
+        if (isAdmin) {
+            // Admin: unrestricted — see every pending leave in the system
+            return leaveRepo.findByStatusOrderByCreatedAtAsc(LeaveStatus.PENDING, pageable)
+                    .map(this::toDTO);
+        } else {
+            // Manager: scoped to their own department
+            String dept = reviewer.getDepartment();
+            return leaveRepo.findPendingByDepartment(dept, pageable).map(this::toDTO);
+        }
     }
-    @Override public Page<LeaveRequestDTO> getAllLeaves(String empId, LeaveStatus status, Pageable pageable) {
+
+    @Override
+    public Page<LeaveRequestDTO> getAllLeaves(String empId, LeaveStatus status, Pageable pageable) {
         return leaveRepo.findAllFiltered(empId, status, pageable).map(this::toDTO);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
     private Employee getActive(String empId) {
         Employee e = employeeRepo.findByEmpIdAndIsEmployeeActiveTrue(empId);
-        if (e == null) throw new EmployeeNotFoundException("Employee not found: " + empId);
+        if (e == null)
+            throw new EmployeeNotFoundException("Employee not found: " + empId);
         return e;
     }
 
@@ -220,7 +276,8 @@ public class LeaveServiceImpl implements LeaveService {
         LocalDate cur = start;
         while (!cur.isAfter(end)) {
             DayOfWeek dow = cur.getDayOfWeek();
-            if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY && !holidays.contains(cur)) count++;
+            if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY && !holidays.contains(cur))
+                count++;
             cur = cur.plusDays(1);
         }
         return count;
@@ -236,10 +293,12 @@ public class LeaveServiceImpl implements LeaveService {
                 });
         switch (type) {
             case ANNUAL -> bal.setAnnualUsed(bal.getAnnualUsed() + days);
-            case SICK   -> bal.setSickUsed(bal.getSickUsed() + days);
+            case SICK -> bal.setSickUsed(bal.getSickUsed() + days);
             case CASUAL -> bal.setCasualUsed(bal.getCasualUsed() + days);
             case UNPAID -> bal.setUnpaidUsed(bal.getUnpaidUsed() + days);
-            default     -> {}
+            case MATERNITY -> bal.setMaternityUsed(nullSafe(bal.getMaternityUsed()) + days);
+            case PATERNITY -> bal.setPaternityUsed(nullSafe(bal.getPaternityUsed()) + days);
+            case COMPENSATORY -> bal.setCompOffUsed(nullSafe(bal.getCompOffUsed()) + days);
         }
         balanceRepo.save(bal);
     }
@@ -254,5 +313,10 @@ public class LeaveServiceImpl implements LeaveService {
                 .reason(r.getReason()).status(r.getStatus())
                 .reviewedBy(r.getReviewedBy()).reviewedAt(r.getReviewedAt())
                 .reviewNotes(r.getReviewNotes()).createdAt(r.getCreatedAt()).build();
+    }
+
+    /** Null-safe unbox — treats null DB columns as 0. */
+    private int nullSafe(Integer value) {
+        return value != null ? value : 0;
     }
 }

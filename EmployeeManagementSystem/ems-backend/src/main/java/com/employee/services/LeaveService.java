@@ -23,6 +23,11 @@ public interface LeaveService {
     // ── Admin / Manager ────────────────────────────────────────────────────────
     LeaveRequestDTO reviewLeave(Long id, LeaveStatus action,
                                 String reviewedBy, String reviewNotes);
-    Page<LeaveRequestDTO> getPendingLeaves(Pageable pageable);
+    /**
+     * Returns pending leave requests visible to the reviewer.
+     * ADMIN  → all pending requests across the org.
+     * MANAGER → only requests from employees in the reviewer's department.
+     */
+    Page<LeaveRequestDTO> getPendingLeaves(String reviewerEmpId, Pageable pageable);
     Page<LeaveRequestDTO> getAllLeaves(String empId, LeaveStatus status, Pageable pageable);
 }

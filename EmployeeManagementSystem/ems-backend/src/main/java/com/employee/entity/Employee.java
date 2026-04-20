@@ -59,6 +59,10 @@ public class Employee {
     @Column(name = "description", nullable = true)
     private String description;
 
+    /** Values: "MALE", "FEMALE", "OTHER" — stored as plain string for flexibility */
+    @Column(name = "gender", nullable = true, length = 10)
+    private String gender;
+
     @Column(name = "date_of_exit", nullable = true)
     private LocalDate dateOfExit;
 

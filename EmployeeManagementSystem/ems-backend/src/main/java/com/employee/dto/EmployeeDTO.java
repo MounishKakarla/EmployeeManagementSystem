@@ -23,6 +23,7 @@ public class EmployeeDTO {
     private LocalDate dateOfJoin;
     private LocalDate dateOfBirth;
     private String    description;
+    private String    gender;
     private LocalDate dateOfExit;
     private Boolean   isEmployeeActive;
     private Set<RolesEnum> roles;

@@ -47,7 +47,7 @@ services:
       - DB_NAME=EMSNew
       - DB_USER=postgres
       - DB_PASSWORD=1234
-      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_KEY=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
     depends_on:
       database:
         condition: service_healthy

@@ -45,7 +45,10 @@ export default function RequestLeaveModal({ open, onClose, balance, onSuccess })
   const remaining = balance ? (
     leaveType === 'ANNUAL'  ? (balance.annualRemaining ?? balance.remainingAnnual)  :
     leaveType === 'SICK'    ? (balance.sickRemaining   ?? balance.remainingSick)    :
-    leaveType === 'CASUAL'  ? (balance.casualRemaining ?? balance.remainingCasual)  : null
+    leaveType === 'CASUAL'  ? (balance.casualRemaining ?? balance.remainingCasual)  :
+    leaveType === 'MATERNITY' ? balance.maternityRemaining :
+    leaveType === 'PATERNITY' ? balance.paternityRemaining :
+    leaveType === 'COMPENSATORY' ? balance.compOffRemaining : null
   ) : null
 
   useEffect(() => { if (!open) reset() }, [open])
@@ -79,7 +82,11 @@ export default function RequestLeaveModal({ open, onClose, balance, onSuccess })
         </>
       }>
 
-      <BaseSelect label="Leave Type" required options={LEAVE_TYPES}
+      <BaseSelect label="Leave Type" required options={LEAVE_TYPES.filter(t => {
+        if (t.value === 'MATERNITY' && balance?.maternityTotal == null) return false;
+        if (t.value === 'PATERNITY' && balance?.paternityTotal == null) return false;
+        return true;
+      })}
         error={errors.leaveType?.message}
         {...register('leaveType', { required: 'Required' })} />
 
