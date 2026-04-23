@@ -14,4 +14,7 @@ public interface HolidayCalendarService {
 
     /** Returns all dates that are weekends OR public holidays in the given range */
     List<LocalDate>        getNonWorkingDates(LocalDate start, LocalDate end);
+
+    /** Deletes all public holidays for a given year. Returns the count removed. */
+    int                    deleteAllByYear(int year);
 }

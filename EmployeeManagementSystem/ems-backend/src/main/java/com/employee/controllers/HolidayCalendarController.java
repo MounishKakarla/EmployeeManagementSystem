@@ -60,6 +60,15 @@ public class HolidayCalendarController {
         return ResponseEntity.ok("Holiday deleted");
     }
 
+    /** DELETE /ems/holidays/year/{year}  — ADMIN only, bulk-removes all holidays for a year */
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/year/{year}")
+    public ResponseEntity<String> deleteAllByYear(Authentication auth, @PathVariable int year) {
+        int count = holidayService.deleteAllByYear(year);
+        auditService.log(auth.getName(), "CLEAR_HOLIDAYS_YEAR", "Cleared " + count + " holiday(s) for " + year);
+        return ResponseEntity.ok("Removed " + count + " holiday(s) for " + year);
+    }
+
     /** GET /ems/holidays/non-working?start=2025-01-01&end=2025-01-31
      *  Returns all weekend + public holiday dates in range (used by timesheet & leave) */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")

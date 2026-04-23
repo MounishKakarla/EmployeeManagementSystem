@@ -37,7 +37,7 @@ INSERT INTO employees (
     'mounsihchowdary1432@gmail.com',
     '7993175737',
     'Hyderabad',
-    'Development',
+    'DEVELOPMENT',
     'Software Engineer',
     'Java, Spring Boot, PostgreSQL, ReactJS,Docker,Python,AI,HTML,CSS',
     '2025-12-15',

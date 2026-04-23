@@ -59,7 +59,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(HttpServletRequest request) {
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, @RequestBody(required = false) RefreshTokenRequest body) {
         String refreshToken = null;
         if (request.getCookies() != null) {
             refreshToken = Arrays.stream(request.getCookies())
@@ -67,6 +67,10 @@ public class AuthController {
                     .map(Cookie::getValue)
                     .findFirst()
                     .orElse(null);
+        }
+
+        if (refreshToken == null && body != null && body.getRefreshToken() != null) {
+            refreshToken = body.getRefreshToken();
         }
 
         if (refreshToken == null) {

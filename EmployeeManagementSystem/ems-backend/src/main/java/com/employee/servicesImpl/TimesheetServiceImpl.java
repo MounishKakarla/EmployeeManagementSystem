@@ -43,12 +43,18 @@ public class TimesheetServiceImpl implements TimesheetService {
         Employee emp = getActive(empId);
         LocalDate weekStart = toMonday(dto.getWeekStartDate());
 
-        Timesheet ts = timesheetRepo
-                .findByEmployeeEmpIdAndWeekStartDate(empId, weekStart).stream()
-                .filter(t -> t.getProject().equalsIgnoreCase(dto.getProject()))
-                .findFirst()
-                .orElse(Timesheet.builder().employee(emp).weekStartDate(weekStart)
-                        .project(dto.getProject()).build());
+        Timesheet ts;
+        if (dto.getId() != null) {
+            ts = timesheetRepo.findById(dto.getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Timesheet entry not found: " + dto.getId()));
+        } else {
+            ts = Timesheet.builder()
+                    .employee(emp)
+                    .weekStartDate(weekStart)
+                    .project(dto.getProject())
+                    .status(TimesheetStatus.DRAFT)
+                    .build();
+        }
 
         if (ts.getStatus() == TimesheetStatus.SUBMITTED || ts.getStatus() == TimesheetStatus.APPROVED)
             throw new IllegalStateException("Cannot edit a submitted or approved timesheet.");
@@ -91,7 +97,12 @@ public class TimesheetServiceImpl implements TimesheetService {
 
     @Override
     public List<TimesheetDTO> getCurrentWeek(String empId) {
-        return timesheetRepo.findByEmployeeEmpIdAndWeekStartDate(empId, toMonday(LocalDate.now()))
+        return getWeek(empId, LocalDate.now());
+    }
+
+    @Override
+    public List<TimesheetDTO> getWeek(String empId, LocalDate weekStartDate) {
+        return timesheetRepo.findByEmployeeEmpIdAndWeekStartDate(empId, toMonday(weekStartDate))
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 

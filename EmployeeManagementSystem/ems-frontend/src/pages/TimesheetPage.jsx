@@ -8,7 +8,7 @@ import { formatDate } from '../utils/dateUtils'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import Pagination from '../components/ui/Pagination'
 import TimesheetEntryForm from '../components/timesheet/TimesheetEntryForm'
-import { Timer, Users, CheckSquare, AlertCircle } from 'lucide-react'
+import { Timer, Users, CheckSquare, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import '../styles/timesheet.css'
 
@@ -38,10 +38,13 @@ export default function TimesheetPage() {
   const [teamEmpId,   setTeamEmpId]   = useState('')
   const [teamStatus,  setTeamStatus]  = useState('')
 
-  // ── Current week form ──────────────────────────────────────────────────────
+  // Selected date to determine the week (defaults to today)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+
+  // ── Week data fetching ──────────────────────────────────────────────────────
   const { data: weekData, refetch: refetchWeek } = useQuery({
-    queryKey: ['timesheet', 'current-week'],
-    queryFn: () => timesheetAPI.getCurrentWeek(),
+    queryKey: ['timesheet', 'week', selectedDate],
+    queryFn: () => timesheetAPI.getWeek(selectedDate),
   })
   const currentWeekEntries = weekData?.data || []
 
@@ -84,11 +87,17 @@ export default function TimesheetPage() {
   const teamHistory  = teamData?.data?.content  || []
   const teamPages    = teamData?.data?.totalPages || 0
 
-  // Current week Monday date
-  const today  = new Date()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  // Calculate Monday of the selected week
+  const selDate = new Date(selectedDate)
+  const monday  = new Date(selDate)
+  monday.setDate(selDate.getDate() - ((selDate.getDay() + 6) % 7))
   const weekStartDate = monday.toISOString().split('T')[0]
+
+  const changeWeek = (offset) => {
+    const d = new Date(weekStartDate)
+    d.setDate(d.getDate() + (offset * 7))
+    setSelectedDate(d.toISOString().split('T')[0])
+  }
 
   const weekSubmitted = currentWeekEntries.some(
     e => e.status === 'SUBMITTED' || e.status === 'APPROVED')
@@ -98,20 +107,57 @@ export default function TimesheetPage() {
   return (
     <div className="timesheet-page">
       {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <div className="page-header" style={{ marginBottom: 24 }}>
+      <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Timer size={26} color="var(--accent)" /> Timesheets
           </h1>
           <p className="page-subtitle">Log your weekly hours and track approvals</p>
         </div>
+        {/* Status pill — shows current week submission state */}
+        {weekData?.data && (
+          <div className={`timesheet-status-pill ${
+            weekData.data.status === 'APPROVED'  ? 'ts-approved'  :
+            weekData.data.status === 'SUBMITTED' ? 'ts-submitted' :
+            weekData.data.status === 'REJECTED'  ? 'ts-rejected'  : 'ts-draft'
+          }`}>
+            {weekData.data.status || 'DRAFT'}
+          </div>
+        )}
+      </div>
+
+      {/* ── Weekly banner ─────────────────────────────────────────────────────── */}
+      <div className="timesheet-week-banner" style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, marginRight: 20 }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => changeWeek(-1)} title="Previous Week">
+            <ChevronLeft size={16} />
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} title="Current Week">
+            Current
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => changeWeek(1)} title="Next Week">
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        
+        <Timer size={15} color="var(--accent)" />
+        <span className="timesheet-week-range" style={{ marginLeft: 8 }}>
+          Week: {formatDate(weekStartDate)} →{' '}
+          {formatDate(new Date(new Date(weekStartDate).getTime() + 6*24*60*60*1000).toISOString().split('T')[0])}
+        </span>
+        <span className="timesheet-week-hours">
+          {currentWeekEntries.reduce((s, e) => s + (
+            (e.mondayHours||0)+(e.tuesdayHours||0)+(e.wednesdayHours||0)+
+            (e.thursdayHours||0)+(e.fridayHours||0)+(e.saturdayHours||0)+(e.sundayHours||0)
+          ), 0).toFixed(1)}h total
+        </span>
       </div>
 
       {/* ── Current week entry form ───────────────────────────────────────────── */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 className="card-title">
-            Current Week — {formatDate(weekStartDate)}
+             Week of {formatDate(weekStartDate)}
           </h3>
           {!weekSubmitted && (
             <button className="btn btn-primary btn-sm"
@@ -130,7 +176,7 @@ export default function TimesheetPage() {
           weekStartDate={weekStartDate}
           existingEntries={currentWeekEntries}
           disabled={weekSubmitted}
-          onSaved={() => qc.invalidateQueries({ queryKey: ['timesheet', 'current-week'] })}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['timesheet'] })}
         />
       </div>
 

@@ -8,6 +8,7 @@ import { formatDate } from '../utils/dateUtils'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import LeaveBalanceCards from '../components/leave/LeaveBalanceCards'
 import RequestLeaveModal from '../components/leave/RequestLeaveModal'
+import GrantLeaveModal from '../components/leave/GrantLeaveModal'
 import Pagination from '../components/ui/Pagination'
 import { Umbrella, ClipboardList, CheckCircle, XCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -46,6 +47,7 @@ export default function LeavePage() {
 
   const [activeTab,    setActiveTab]    = useState('my')
   const [requestOpen,  setRequestOpen]  = useState(false)
+  const [grantOpen,    setGrantOpen]    = useState(false)
   const [myPage,       setMyPage]       = useState(0)
   const [pendingPage,  setPendingPage]  = useState(0)
   const [allPage,      setAllPage]      = useState(0)
@@ -113,9 +115,16 @@ export default function LeavePage() {
           </h1>
           <p className="page-subtitle">Apply for leave and track your requests</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setRequestOpen(true)}>
-          + Request Leave
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {isAdmin() && (
+            <button className="btn btn-secondary" onClick={() => setGrantOpen(true)}>
+              Grant Leave
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={() => setRequestOpen(true)}>
+            + Request Leave
+          </button>
+        </div>
       </div>
 
       {/* ── Balance cards ────────────────────────────────────────────────────── */}
@@ -222,6 +231,12 @@ export default function LeavePage() {
         open={requestOpen}
         onClose={() => setRequestOpen(false)}
         balance={balance}
+        onSuccess={() => qc.invalidateQueries({ queryKey: ['leave'] })}
+      />
+
+      <GrantLeaveModal
+        open={grantOpen}
+        onClose={() => setGrantOpen(false)}
         onSuccess={() => qc.invalidateQueries({ queryKey: ['leave'] })}
       />
     </div>

@@ -76,3 +76,18 @@
 **/postgres_data/
 **/.docker/
 **/docker-compose.override.yml
+
+# Expo / Mobile
+**/.expo/
+**/*.apk
+**/*.aab
+**/web-build/
+
+# Media / Artifacts
+**/*.mp4
+**/*.webp
+**/*.png.bak
+
+# App Specific
+**/ems-frontendNative/.npmrc
+**/check-password.js

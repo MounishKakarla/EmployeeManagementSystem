@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { authAPI } from '../api'
 import { useSessionTimeout } from '../hooks/useSessionTimeout'
+import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
 const AuthContext = createContext()
@@ -9,6 +10,7 @@ export function AuthProvider({ children }) {
   const [user,      setUser]      = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [isWarning, setIsWarning] = useState(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -22,6 +24,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (credentials) => {
+    queryClient.clear()
     await authAPI.login(credentials)
     const res = await authAPI.me()
     setUser(res.data)
@@ -29,8 +32,12 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try { await authAPI.logout() } catch {}
-    finally { setUser(null); setIsWarning(false) }
-  }, [])
+    finally {
+      queryClient.clear()
+      setUser(null)
+      setIsWarning(false)
+    }
+  }, [queryClient])
 
   const refreshSession = useCallback(async () => {
     try {

@@ -22,7 +22,7 @@ const TEMPLATE_HEADERS = [
 const EXAMPLE_ROW = [
   'John Doe','john.doe@tektalis.com','john@gmail.com','9876543210',
   'Hyderabad, TS','DEVELOPMENT','Software Engineer','JavaScript, React, Node.js',
-  '2025-01-15','1995-06-20','EMPLOYEE',
+  '2026-01-15','1995-06-20','EMPLOYEE',
 ]
 
 function downloadTemplate() {

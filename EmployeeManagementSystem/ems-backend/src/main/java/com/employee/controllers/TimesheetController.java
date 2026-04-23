@@ -36,6 +36,18 @@ public class TimesheetController {
     }
 
     /**
+     * GET /ems/timesheets/week?date=2025-01-06
+     * Returns project entries for the authenticated employee's provided date's week.
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @GetMapping("/week")
+    public ResponseEntity<?> getWeek(
+            Authentication auth,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(timesheetService.getWeek(auth.getName(), date));
+    }
+
+    /**
      * POST /ems/timesheets
      * Save (create or update) a single project entry for a week.
      */

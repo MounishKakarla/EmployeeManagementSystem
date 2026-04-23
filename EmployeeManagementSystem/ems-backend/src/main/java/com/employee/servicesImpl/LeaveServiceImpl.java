@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,12 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.employee.dto.LeaveBalanceDTO;
 import com.employee.dto.LeaveRequestDTO;
+import com.employee.entity.Attendance;
 import com.employee.entity.Employee;
 import com.employee.entity.LeaveBalance;
 import com.employee.entity.LeaveRequest;
+import com.employee.enums.AttendanceStatus;
 import com.employee.enums.LeaveStatus;
 import com.employee.enums.LeaveType;
 import com.employee.exceptions.EmployeeNotFoundException;
+import com.employee.repository.AttendanceRepository;
 import com.employee.repository.EmployeeRepository;
 import com.employee.repository.HolidayCalendarRepository;
 import com.employee.repository.LeaveBalanceRepository;
@@ -38,6 +42,7 @@ public class LeaveServiceImpl implements LeaveService {
     private final LeaveBalanceRepository balanceRepo;
     private final EmployeeRepository employeeRepo;
     private final HolidayCalendarRepository holidayRepo;
+    private final AttendanceRepository attendanceRepo;
     private final LeaveCalculationService calcService;
     private final AuditService auditService;
 
@@ -108,6 +113,7 @@ public class LeaveServiceImpl implements LeaveService {
         if (req.getStatus() != LeaveStatus.PENDING)
             throw new IllegalStateException("Only PENDING requests can be cancelled.");
         req.setStatus(LeaveStatus.CANCELLED);
+        removeOnLeaveAttendance(empId, req.getStartDate(), req.getEndDate());
         auditService.log(empId, "CANCEL_LEAVE", "Cancelled leave request id=" + id);
         return toDTO(leaveRepo.save(req));
     }
@@ -131,20 +137,101 @@ public class LeaveServiceImpl implements LeaveService {
             throw new IllegalStateException(
                     "You cannot review your own leave request. Another Admin or Manager must approve it.");
 
+        if (action == LeaveStatus.APPROVED) {
+            // Guard against race-condition double-approval: another request for the
+            // same employee and overlapping dates may have been approved concurrently.
+            long conflicts = leaveRepo.countConflictingApproved(
+                    req.getEmployee().getEmpId(),
+                    req.getStartDate(), req.getEndDate(), id);
+            if (conflicts > 0)
+                throw new IllegalStateException(
+                        "Cannot approve: an approved leave already exists for these dates.");
+            deductBalance(req.getEmployee().getEmpId(), req.getLeaveType(),
+                    req.getDaysRequested(), req.getStartDate().getYear());
+            createOnLeaveAttendance(req.getEmployee(), req.getStartDate(), req.getEndDate());
+        }
+
         req.setStatus(action);
         req.setReviewedBy(reviewedBy);
         req.setReviewedAt(LocalDateTime.now());
         req.setReviewNotes(reviewNotes);
-
-        if (action == LeaveStatus.APPROVED)
-            deductBalance(req.getEmployee().getEmpId(), req.getLeaveType(),
-                    req.getDaysRequested(), req.getStartDate().getYear());
 
         auditService.log(reviewedBy, action.name() + "_LEAVE",
                 action.name() + " leave id=" + id + " for " + req.getEmployee().getEmpId()
                         + " (" + req.getDaysRequested() + " days)");
 
         return toDTO(leaveRepo.save(req));
+    }
+
+    // ── Admin grant leave ──────────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public LeaveRequestDTO grantLeave(String adminEmpId, String targetEmpId, LeaveRequestDTO dto) {
+        Employee emp = getActive(targetEmpId);
+
+        if (dto.getStartDate() == null || dto.getEndDate() == null)
+            throw new IllegalArgumentException("Start date and end date are required.");
+        if (dto.getEndDate().isBefore(dto.getStartDate()))
+            throw new IllegalArgumentException("End date must be on or after start date.");
+
+        // Block if an APPROVED leave already covers these dates
+        long approvedConflicts = leaveRepo.countConflictingApproved(
+                targetEmpId, dto.getStartDate(), dto.getEndDate(), -1L);
+        if (approvedConflicts > 0)
+            throw new IllegalStateException(
+                    "Cannot grant leave: an approved leave already exists for these dates.");
+
+        int days = countWorkingDays(dto.getStartDate(), dto.getEndDate());
+        if (days == 0)
+            throw new IllegalArgumentException(
+                    "Selected date range falls entirely on weekends or public holidays.");
+
+        // Gender-gated leave types
+        String gender = emp.getGender() != null ? emp.getGender().toUpperCase() : "";
+        LeaveType lt = dto.getLeaveType();
+        if (lt == LeaveType.MATERNITY && "MALE".equals(gender))
+            throw new IllegalArgumentException("Maternity leave is not applicable for male employees.");
+        if (lt == LeaveType.PATERNITY && !"MALE".equals(gender))
+            throw new IllegalArgumentException("Paternity leave is only applicable for male employees.");
+
+        // Auto-reject any PENDING requests that overlap — they would become orphaned
+        leaveRepo.findOverlappingPending(targetEmpId, dto.getStartDate(), dto.getEndDate())
+                .forEach(pending -> {
+                    pending.setStatus(LeaveStatus.REJECTED);
+                    pending.setReviewedBy(adminEmpId);
+                    pending.setReviewedAt(LocalDateTime.now());
+                    pending.setReviewNotes("Superseded by admin-granted leave.");
+                    leaveRepo.save(pending);
+                    auditService.log(adminEmpId, "AUTO_REJECT_LEAVE",
+                            "Auto-rejected pending leave id=" + pending.getId()
+                                    + " for " + targetEmpId + " (superseded by grant)");
+                });
+
+        // Deduct balance (skip for UNPAID)
+        if (lt != LeaveType.UNPAID)
+            deductBalance(targetEmpId, lt, days, dto.getStartDate().getYear());
+
+        LeaveRequest granted = LeaveRequest.builder()
+                .employee(emp)
+                .leaveType(lt)
+                .startDate(dto.getStartDate())
+                .endDate(dto.getEndDate())
+                .daysRequested(days)
+                .reason(dto.getReason() != null ? dto.getReason() : "Granted by admin")
+                .status(LeaveStatus.APPROVED)
+                .reviewedBy(adminEmpId)
+                .reviewedAt(LocalDateTime.now())
+                .reviewNotes("Leave granted directly by admin.")
+                .build();
+
+        auditService.log(adminEmpId, "GRANT_LEAVE",
+                lt + " leave granted for " + targetEmpId
+                        + " from " + dto.getStartDate() + " to " + dto.getEndDate()
+                        + " (" + days + " working days)");
+
+        LeaveRequestDTO result = toDTO(leaveRepo.save(granted));
+        createOnLeaveAttendance(emp, dto.getStartDate(), dto.getEndDate());
+        return result;
     }
 
     // ── Balance ────────────────────────────────────────────────────────────────
@@ -260,6 +347,29 @@ public class LeaveServiceImpl implements LeaveService {
         return leaveRepo.findAllFiltered(empId, status, pageable).map(this::toDTO);
     }
 
+    // ── Recalculate approved leaves when a new holiday is added ───────────────
+    @Override
+    @Transactional
+    public void recalculateAffectedLeaves(LocalDate newHolidayDate) {
+        leaveRepo.findApprovedLeavesSpanningDate(newHolidayDate).forEach(req -> {
+            int oldDays = req.getDaysRequested();
+            // countWorkingDays re-queries the holiday table — the new holiday is already
+            // saved in the same transaction so it will be included in the count.
+            int newDays = countWorkingDays(req.getStartDate(), req.getEndDate());
+            int diff = oldDays - newDays;
+            if (diff > 0 && req.getLeaveType() != LeaveType.UNPAID) {
+                req.setDaysRequested(newDays);
+                leaveRepo.save(req);
+                refundBalance(req.getEmployee().getEmpId(),
+                        req.getLeaveType(), diff, req.getStartDate().getYear());
+                auditService.log("SYSTEM", "LEAVE_RECALCULATED",
+                        "Leave id=" + req.getId() + " for " + req.getEmployee().getEmpId()
+                                + " adjusted " + oldDays + "→" + newDays
+                                + " days (new holiday: " + newHolidayDate + ")");
+            }
+        });
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────────
     private Employee getActive(String empId) {
         Employee e = employeeRepo.findByEmpIdAndIsEmployeeActiveTrue(empId);
@@ -301,6 +411,78 @@ public class LeaveServiceImpl implements LeaveService {
             case COMPENSATORY -> bal.setCompOffUsed(nullSafe(bal.getCompOffUsed()) + days);
         }
         balanceRepo.save(bal);
+    }
+
+    @Transactional
+    private void refundBalance(String empId, LeaveType type, int days, int year) {
+        Employee emp = getActive(empId);
+        LeaveBalance bal = balanceRepo.findByEmployeeEmpIdAndYear(empId, year)
+                .orElseGet(() -> {
+                    LeaveBalance prev = balanceRepo.findByEmployeeEmpIdAndYear(empId, year - 1).orElse(null);
+                    return balanceRepo.save(calcService.compute(emp, year, null, prev));
+                });
+        switch (type) {
+            case ANNUAL -> bal.setAnnualUsed(Math.max(0, bal.getAnnualUsed() - days));
+            case SICK -> bal.setSickUsed(Math.max(0, bal.getSickUsed() - days));
+            case CASUAL -> bal.setCasualUsed(Math.max(0, bal.getCasualUsed() - days));
+            case UNPAID -> bal.setUnpaidUsed(Math.max(0, bal.getUnpaidUsed() - days));
+            case MATERNITY -> bal.setMaternityUsed(Math.max(0, nullSafe(bal.getMaternityUsed()) - days));
+            case PATERNITY -> bal.setPaternityUsed(Math.max(0, nullSafe(bal.getPaternityUsed()) - days));
+            case COMPENSATORY -> bal.setCompOffUsed(Math.max(0, nullSafe(bal.getCompOffUsed()) - days));
+        }
+        balanceRepo.save(bal);
+    }
+
+    /**
+     * For every non-weekend day in [start, end], create or overwrite the
+     * attendance record with ON_LEAVE. This ensures the attendance calendar
+     * shows ON_LEAVE even when the day falls on a public holiday.
+     */
+    private void createOnLeaveAttendance(Employee emp, LocalDate start, LocalDate end) {
+        LocalDate cur = start;
+        while (!cur.isAfter(end)) {
+            DayOfWeek dow = cur.getDayOfWeek();
+            // Include public holidays — leave takes priority over holiday marking
+            if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY) {
+                final LocalDate date = cur;
+                Attendance rec = attendanceRepo
+                        .findByEmployeeEmpIdAndAttendanceDate(emp.getEmpId(), date)
+                        .map(existing -> {
+                            existing.setStatus(AttendanceStatus.ON_LEAVE);
+                            existing.setNotes("On approved leave");
+                            existing.setRecordedBy("SYSTEM");
+                            return existing;
+                        })
+                        .orElse(Attendance.builder()
+                                .employee(emp)
+                                .attendanceDate(date)
+                                .status(AttendanceStatus.ON_LEAVE)
+                                .notes("On approved leave")
+                                .recordedBy("SYSTEM")
+                                .build());
+                attendanceRepo.save(rec);
+            }
+            cur = cur.plusDays(1);
+        }
+    }
+
+    /**
+     * Removes SYSTEM-created ON_LEAVE records when a leave is cancelled.
+     * Only removes records the system created — manual check-ins are preserved.
+     */
+    private void removeOnLeaveAttendance(String empId, LocalDate start, LocalDate end) {
+        LocalDate cur = start;
+        while (!cur.isAfter(end)) {
+            DayOfWeek dow = cur.getDayOfWeek();
+            if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY) {
+                final LocalDate date = cur;
+                attendanceRepo.findByEmployeeEmpIdAndAttendanceDate(empId, date)
+                        .filter(rec -> rec.getStatus() == AttendanceStatus.ON_LEAVE
+                                && "SYSTEM".equals(rec.getRecordedBy()))
+                        .ifPresent(attendanceRepo::delete);
+            }
+            cur = cur.plusDays(1);
+        }
     }
 
     private LeaveRequestDTO toDTO(LeaveRequest r) {

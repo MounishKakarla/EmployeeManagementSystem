@@ -90,11 +90,9 @@ public class Employee {
 
     @OneToOne(mappedBy = "employee", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private User user;
 
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL)
     @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private Set<UserRoles> roles;
 }

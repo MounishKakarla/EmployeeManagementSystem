@@ -15,6 +15,7 @@ public interface TimesheetService {
     TimesheetDTO saveEntry(String empId, TimesheetDTO dto);
     TimesheetDTO submitWeek(String empId, LocalDate weekStartDate);
     List<TimesheetDTO> getCurrentWeek(String empId);
+    List<TimesheetDTO> getWeek(String empId, LocalDate weekStartDate);
     Page<TimesheetDTO> getMyTimesheets(String empId, Pageable pageable);
 
     // ── Admin / Manager ────────────────────────────────────────────────────────

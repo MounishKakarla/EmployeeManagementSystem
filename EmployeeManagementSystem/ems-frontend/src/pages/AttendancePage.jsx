@@ -70,7 +70,7 @@ export default function AttendancePage() {
   const calendarRecords = rangeData?.data || []
 
   const { data: holidayRangeData } = useQuery({
-    queryKey: ['attendance', 'holidays', selectedYear],
+    queryKey: ['holidays', selectedYear],
     queryFn: () => holidayAPI.getByYear(selectedYear),
   })
 
@@ -96,6 +96,14 @@ export default function AttendancePage() {
     })
     return Array.from(recordMap.values())
   }, [calendarRecords, holidayDates])
+
+  // ── Recent History (last 10) ───────────────────────────────────────────────
+  const { data: historyData } = useQuery({
+    queryKey: ['attendance', 'my-history'],
+    queryFn: () => attendanceAPI.getMyHistory({ page: 0, size: 10 }),
+    enabled: activeTab === 'my',
+  })
+  const recentHistory = historyData?.data?.content || []
 
   // ── Check-in mutation ──────────────────────────────────────────────────────
   const checkInMutation = useMutation({
@@ -211,6 +219,9 @@ export default function AttendancePage() {
             month={selectedMonth}
             year={selectedYear}
           />
+
+          {/* ── Recent History (native-style list) ─────────────────────────── */}
+          <RecentHistoryPanel records={recentHistory} />
         </div>
       )}
 
@@ -233,6 +244,84 @@ export default function AttendancePage() {
         editRecord={editRecord}
         onSuccess={() => qc.invalidateQueries({ queryKey: ['attendance'] })}
       />
+    </div>
+  )
+}
+
+// ── Recent History Panel ────────────────────────────────────────────────────────
+function formatTimeStr(val) {
+  if (!val) return '—'
+  if (val.includes('T') || val.includes('-')) {
+    const d = new Date(val)
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+  }
+  const [h, m] = val.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  return `${String(h % 12 || 12).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`
+}
+
+function computeDur(rec) {
+  const inVal  = rec.checkInTime  || rec.checkIn
+  const outVal = rec.checkOutTime || rec.checkOut
+  if (!inVal || !outVal) return null
+  const parseMin = (s) => {
+    if (s.includes('T') || s.includes('-')) { const d = new Date(s); return d.getHours()*60+d.getMinutes() }
+    const [h,m] = s.split(':').map(Number); return h*60+m
+  }
+  const diff = parseMin(outVal) - parseMin(inVal)
+  if (diff <= 0) return null
+  return `${Math.floor(diff/60)}h ${diff%60}m`
+}
+
+const STATUS_COLORS = {
+  PRESENT:        { color: 'var(--success)', bg: 'var(--success-light)' },
+  LATE:           { color: 'var(--warning)', bg: 'var(--warning-light)' },
+  ABSENT:         { color: 'var(--danger)',  bg: 'var(--danger-light)'  },
+  HALF_DAY:       { color: 'var(--warning)', bg: 'var(--warning-light)' },
+  ON_LEAVE:       { color: 'var(--info)',    bg: 'var(--info-light)'    },
+  WORK_FROM_HOME: { color: 'var(--accent)',  bg: 'var(--accent-light)'  },
+  HOLIDAY:        { color: 'var(--info)',    bg: 'var(--info-light)'    },
+}
+
+function RecentHistoryPanel({ records }) {
+  if (!records.length) return null
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div style={{ padding: '18px 24px 0', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+        <h3 className="card-title" style={{ margin:0 }}>Recent History</h3>
+        <span style={{ fontSize:12, color:'var(--text-muted)' }}>Last {records.length} records</span>
+      </div>
+      <div className="attendance-history-list">
+        {records.map((rec, i) => {
+          const date    = rec.attendanceDate || rec.date || (rec.checkIn ? rec.checkIn.split('T')[0] : null)
+          const inTime  = formatTimeStr(rec.checkInTime  || rec.checkIn)
+          const outTime = formatTimeStr(rec.checkOutTime || rec.checkOut)
+          const dur     = computeDur(rec)
+          const cfg     = STATUS_COLORS[rec.status] || { color:'var(--text-muted)', bg:'var(--bg-tertiary)' }
+          return (
+            <div key={rec.id ?? i} className="attendance-history-row">
+              <div className="attendance-history-date">
+                <div style={{ fontWeight:600, fontSize:14 }}>
+                  {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—'}
+                </div>
+                {rec.status && (
+                  <span className="attendance-history-badge" style={{ color: cfg.color, background: cfg.bg }}>
+                    {rec.status.replace(/_/g,' ')}
+                  </span>
+                )}
+              </div>
+              <div className="attendance-history-times">
+                <span style={{ color:'var(--success)', fontWeight:600 }}>{inTime}</span>
+                <span style={{ color:'var(--text-muted)', fontSize:12 }}>→</span>
+                <span style={{ color: rec.checkOutTime || rec.checkOut ? 'var(--info)' : 'var(--text-muted)', fontWeight:600 }}>{outTime}</span>
+              </div>
+              <div style={{ fontSize:13, fontWeight:700, color: dur ? 'var(--accent)' : 'var(--text-muted)', minWidth:60, textAlign:'right' }}>
+                {dur ?? '—'}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

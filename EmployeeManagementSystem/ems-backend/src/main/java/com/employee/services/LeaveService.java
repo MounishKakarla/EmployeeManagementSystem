@@ -1,5 +1,7 @@
 package com.employee.services;
 
+import java.time.LocalDate;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -23,6 +25,13 @@ public interface LeaveService {
     // ── Admin / Manager ────────────────────────────────────────────────────────
     LeaveRequestDTO reviewLeave(Long id, LeaveStatus action,
                                 String reviewedBy, String reviewNotes);
+
+    /**
+     * Admin directly grants an approved leave for any employee.
+     * Auto-rejects any overlapping PENDING requests for that employee.
+     */
+    LeaveRequestDTO grantLeave(String adminEmpId, String targetEmpId, LeaveRequestDTO dto);
+
     /**
      * Returns pending leave requests visible to the reviewer.
      * ADMIN  → all pending requests across the org.
@@ -30,4 +39,11 @@ public interface LeaveService {
      */
     Page<LeaveRequestDTO> getPendingLeaves(String reviewerEmpId, Pageable pageable);
     Page<LeaveRequestDTO> getAllLeaves(String empId, LeaveStatus status, Pageable pageable);
+
+    /**
+     * Called when a new holiday is added. Finds all APPROVED leaves spanning that
+     * date, recalculates their working-day count (now excluding the new holiday),
+     * and refunds the balance difference to each affected employee.
+     */
+    void recalculateAffectedLeaves(LocalDate newHolidayDate);
 }

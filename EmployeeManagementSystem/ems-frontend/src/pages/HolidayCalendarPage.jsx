@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { parseApiError } from '../utils/errorUtils'
 import Modal from '../components/ui/Modal'
 import { BaseInput } from '../components/ui/BaseComponents'
-import { CalendarDays, Plus, Trash2, Pencil, Sun } from 'lucide-react'
+import { CalendarDays, Plus, Trash2, Pencil, Sun, Eraser } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../api'
 import useDocumentTitle from '../hooks/useDocumentTitle'
@@ -14,10 +14,11 @@ import '../styles/holiday.css'
 
 // inline API calls since holidayAPI is a small set
 const holidayAPI = {
-  getByYear:  (year)    => api.get('/ems/holidays', { params: { year } }),
-  add:        (data)    => api.post('/ems/holidays', data),
-  update:     (id, d)   => api.put(`/ems/holidays/${id}`, d),
-  delete:     (id)      => api.delete(`/ems/holidays/${id}`),
+  getByYear:     (year)    => api.get('/ems/holidays', { params: { year } }),
+  add:           (data)    => api.post('/ems/holidays', data),
+  update:        (id, d)   => api.put(`/ems/holidays/${id}`, d),
+  delete:        (id)      => api.delete(`/ems/holidays/${id}`),
+  deleteByYear:  (year)    => api.delete(`/ems/holidays/year/${year}`),
 }
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -49,6 +50,16 @@ export default function HolidayCalendarPage() {
     onError:   (e)  => toast.error(parseApiError(e, 'Failed to delete')),
   })
 
+  const clearAllMutation = useMutation({
+    mutationFn: () => holidayAPI.deleteByYear(year),
+    onSuccess: (res) => {
+      toast.success(res.data || `All holidays for ${year} cleared`)
+      qc.invalidateQueries({ queryKey: ['holidays'] })
+      qc.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: (e) => toast.error(parseApiError(e, 'Failed to clear holidays')),
+  })
+
   return (
     <div className="holiday-page">
       <div className="page-header" style={{ marginBottom: 24 }}>
@@ -68,87 +79,105 @@ export default function HolidayCalendarPage() {
             ))}
           </select>
           {isAdmin() && (
-            <button className="btn btn-primary btn-sm" onClick={() => setAddOpen(true)}>
-              <Plus size={14} /> Add Holiday
-            </button>
+            <>
+              {holidays.length > 0 && (
+                <button
+                  className="btn btn-danger btn-sm"
+                  disabled={clearAllMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Remove all ${holidays.length} holiday(s) for ${year}? This cannot be undone.`))
+                      clearAllMutation.mutate()
+                  }}
+                >
+                  <Eraser size={14} /> Clear All
+                </button>
+              )}
+              <button className="btn btn-primary btn-sm" onClick={() => setAddOpen(true)}>
+                <Plus size={14} /> Add Holiday
+              </button>
+            </>
           )}
         </div>
       </div>
 
-      {/* ── Year grid ──────────────────────────────────────────────────────────── */}
-      {isLoading ? (
-        <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
-          <div className="spinner" style={{ width: 28, height: 28 }} />
-        </div>
-      ) : (
-        <div className="holiday-year-grid">
-          {Array.from({ length: 12 }, (_, month) => (
-            <MonthCard
-              key={month}
-              month={month}
-              year={year}
-              holidaySet={holidaySet}
-              holidays={holidays.filter(h => {
-                const d = new Date(h.holidayDate)
-                return d.getMonth() === month && d.getFullYear() === year
-              })}
-              isAdmin={isAdmin()}
-              onEdit={r => setEditRecord(r)}
-              onDelete={id => deleteMutation.mutate(id)}
+      {/* ── Holiday Management Layout ────────────────────────────────────────── */}
+      <div className="holiday-container" style={{ display: 'grid', gridTemplateColumns: isAdmin() ? '320px 1fr' : '1fr', gap: 24, alignItems: 'start' }}>
+        
+        {/* Left Side: Add Holiday Form (Admins Only) */}
+        {isAdmin() && (
+          <div className="card" style={{ padding: 20 }}>
+            <h3 className="card-title" style={{ marginBottom: 16 }}>Add New Holiday</h3>
+            <HolidayForm 
+              onSuccess={() => {
+                qc.invalidateQueries({ queryKey: ['holidays'] })
+                qc.invalidateQueries({ queryKey: ['attendance'] })
+              }}
             />
-          ))}
-        </div>
-      )}
-
-      {/* ── Holiday list ───────────────────────────────────────────────────────── */}
-      {holidays.length > 0 && (
-        <div className="card" style={{ padding: 0 }}>
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
-            <h3 className="card-title">{year} Public Holidays ({holidays.length})</h3>
           </div>
-          <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-            <table>
-              <thead>
-                <tr><th>Date</th><th>Name</th><th>Description</th><th>Type</th>
-                  {isAdmin() && <th>Actions</th>}</tr>
-              </thead>
-              <tbody>
-                {holidays.map(h => (
-                  <tr key={h.id}>
-                    <td style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
-                      {new Date(h.holidayDate).toLocaleDateString('en-IN',
-                        { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })}
-                    </td>
-                    <td style={{ fontWeight: 500, fontSize: 14 }}>{h.name}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{h.description || '—'}</td>
-                    <td>
-                      <span className={`badge ${h.isMandatory ? 'badge-danger' : 'badge-warning'}`}
-                        style={{ fontSize: 11 }}>
-                        {h.isMandatory ? 'Mandatory' : 'Optional'}
-                      </span>
-                    </td>
-                    {isAdmin() && (
-                      <td>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn btn-ghost btn-sm"
-                            onClick={() => setEditRecord(h)}>
-                            <Pencil size={12} />
-                          </button>
-                          <button className="btn btn-ghost btn-sm"
-                            onClick={() => deleteMutation.mutate(h.id)}
-                            disabled={deleteMutation.isPending}>
-                            <Trash2 size={12} color="var(--danger)" />
-                          </button>
+        )}
+
+        {/* Right Side: Holiday List */}
+        <div className="card" style={{ padding: 0 }}>
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 className="card-title">{year} Public Holidays ({holidays.length})</h3>
+            {!isAdmin() && holidays.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No holidays found.</p>}
+          </div>
+
+          {isLoading ? (
+            <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+          ) : holidays.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <Sun size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
+              <p style={{ color: 'var(--text-muted)' }}>No holidays defined for {year}.</p>
+            </div>
+          ) : (
+            <div className="table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Name</th>
+                    <th className="desktop-only">Description</th>
+                    {isAdmin() && <th style={{ width: 80 }}>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {holidays.map(h => (
+                    <tr key={h.id}>
+                      <td style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {new Date(h.holidayDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })}
+                      </td>
+                      <td style={{ fontWeight: 500, fontSize: 14 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          {h.name}
+                          <span className={`badge ${h.isMandatory ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                            {h.isMandatory ? 'Mandatory' : 'Optional'}
+                          </span>
                         </div>
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td className="desktop-only" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{h.description || '—'}</td>
+                      {isAdmin() && (
+                        <td>
+                          <button 
+                            className="btn btn-ghost btn-sm" 
+                            onClick={() => {
+                              if(window.confirm('Remove this holiday?')) deleteMutation.mutate(h.id)
+                            }}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 size={14} color="var(--danger)" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
+
 
       {holidays.length === 0 && !isLoading && (
         <div className="empty-state card">
@@ -173,69 +202,58 @@ export default function HolidayCalendarPage() {
   )
 }
 
-// ── Mini month calendar card ───────────────────────────────────────────────────
-function MonthCard({ month, year, holidaySet, holidays, isAdmin, onEdit, onDelete }) {
-  const firstDay = new Date(year, month, 1).getDay()
-  const lastDate = new Date(year, month + 1, 0).getDate()
-  const today    = new Date().toISOString().split('T')[0]
+// ── Standalone Holiday Form (Inline) ──────────────────────────────────────────
+function HolidayForm({ onSuccess }) {
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+    defaultValues: { holidayDate: '', name: '', description: '', isMandatory: true },
+  })
 
-  const cells = []
-  for (let i = 0; i < firstDay; i++) cells.push(null)
-  for (let d = 1; d <= lastDate; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    const dow     = new Date(year, month, d).getDay()
-    cells.push({ d, dateStr, isWeekend: dow === 0 || dow === 6,
-      isHoliday: holidaySet.has(dateStr), isToday: dateStr === today })
-  }
+  const mutation = useMutation({
+    mutationFn: (data) => holidayAPI.add(data),
+    onSuccess: () => {
+      toast.success('Holiday added')
+      onSuccess?.(); reset()
+    },
+    onError: (e) => toast.error(parseApiError(e, 'Failed to save holiday')),
+  })
 
   return (
-    <div className="card month-card">
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: 'var(--text-primary)' }}>
-        {MONTH_NAMES[month]}
+    <div className="holiday-inline-form" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <BaseInput label="Date" type="date" required
+        error={errors.holidayDate?.message}
+        {...register('holidayDate', { required: 'Date is required' })} />
+      <BaseInput label="Holiday Name" placeholder="e.g. Republic Day" required
+        error={errors.name?.message}
+        {...register('name', { required: 'Name is required' })} />
+      
+      <div className="form-group">
+        <label className="form-label">Description</label>
+        <textarea className="form-input" rows={2} placeholder="Optional..."
+          style={{ resize:'none' }} {...register('description')} />
       </div>
-      <div className="month-grid">
-        {DAY_LABELS.map(d => (
-          <div key={d} style={{ textAlign:'center', fontSize:10, color:'var(--text-muted)',
-            fontWeight:600, paddingBottom:4 }}>{d}</div>
-        ))}
-        {cells.map((c, i) => !c ? <div key={`e${i}`} /> : (
-          <div key={c.dateStr} title={c.isHoliday
-            ? holidays.find(h => h.holidayDate === c.dateStr)?.name : undefined}
-            style={{
-              textAlign:'center', fontSize:11, lineHeight:'24px', height:24, borderRadius:4,
-              background: c.isToday ? 'var(--accent)'
-                : c.isHoliday ? 'var(--danger-light)'
-                : c.isWeekend ? 'var(--bg-tertiary)' : 'transparent',
-              color: c.isToday ? 'white'
-                : c.isHoliday ? 'var(--danger)'
-                : c.isWeekend ? 'var(--text-muted)' : 'var(--text-primary)',
-              fontWeight: c.isToday || c.isHoliday ? 700 : 400,
-              cursor: c.isHoliday ? 'pointer' : 'default',
-            }}
-          >{c.d}</div>
-        ))}
+
+      <div className="form-group" style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <input type="checkbox" id="mandatory" {...register('isMandatory')}
+          style={{ width:16, height:16 }} />
+        <label htmlFor="mandatory" style={{ fontSize:13, cursor:'pointer', fontWeight: 500 }}>
+          Mandatory Holiday
+        </label>
       </div>
-      {holidays.length > 0 && (
-        <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-          {holidays.map(h => (
-            <div key={h.id} style={{ fontSize: 11, color: 'var(--danger)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginBottom: 2 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                flex: 1, marginRight: 4 }}>
-                {new Date(h.holidayDate).getDate()} — {h.name}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+
+      <button 
+        className="btn btn-primary" 
+        style={{ width: '100%', marginTop: 8 }}
+        onClick={handleSubmit(d => mutation.mutate(d))}
+        disabled={mutation.isPending}
+      >
+        {mutation.isPending ? <div className="spinner" style={{ width: 14, height: 14 }} /> : <><Plus size={16} /> Add Holiday</>}
+      </button>
     </div>
   )
 }
 
-// ── Add/Edit modal ─────────────────────────────────────────────────────────────
+// ── Add/Edit modal (Keeping for potential legacy or edit uses) ────────────────
 function HolidayModal({ open, editRecord, onClose, onSuccess }) {
-  const qc     = useQueryClient()
   const isEdit = !!editRecord
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: { holidayDate: '', name: '', description: '', isMandatory: true },
@@ -260,9 +278,7 @@ function HolidayModal({ open, editRecord, onClose, onSuccess }) {
           <button className="btn btn-secondary" onClick={() => { onClose(); reset() }}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSubmit(d => mutation.mutate(d))}
             disabled={mutation.isPending}>
-            {mutation.isPending
-              ? <><span className="spinner" style={{ width:14, height:14 }} /> Saving…</>
-              : isEdit ? 'Update' : 'Add Holiday'}
+            {mutation.isPending ? 'Saving…' : isEdit ? 'Update' : 'Add Holiday'}
           </button>
         </>
       }>
@@ -281,9 +297,10 @@ function HolidayModal({ open, editRecord, onClose, onSuccess }) {
         <input type="checkbox" id="mandatory" {...register('isMandatory')}
           style={{ width:16, height:16 }} />
         <label htmlFor="mandatory" style={{ fontSize:14, cursor:'pointer' }}>
-          Mandatory (applies to all employees)
+          Mandatory
         </label>
       </div>
     </Modal>
   )
 }
+

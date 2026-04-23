@@ -2,6 +2,7 @@ package com.employee.servicesImpl;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AttendanceServiceImpl implements AttendanceService {
 
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+
     private final AttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
 
@@ -36,14 +39,14 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional
     public AttendanceDTO checkIn(String empId, String notes) {
         Employee employee = getActiveEmployee(empId);
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(IST);
 
         if (attendanceRepository.existsByEmployeeEmpIdAndAttendanceDate(empId, today)) {
             throw new IllegalStateException(
                     "Already checked in today. Use check-out or contact your manager to update.");
         }
 
-        LocalTime now = LocalTime.now();
+        LocalTime now = LocalTime.now(IST);
         // Late if check-in is after 09:30
         AttendanceStatus status = now.isAfter(LocalTime.of(9, 30))
                 ? AttendanceStatus.LATE
@@ -66,7 +69,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional
     public AttendanceDTO checkOut(String empId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(IST);
 
         Attendance record = attendanceRepository
                 .findByEmployeeEmpIdAndAttendanceDate(empId, today)
@@ -77,7 +80,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new IllegalStateException("Already checked out today.");
         }
 
-        record.setCheckOutTime(LocalTime.now());
+        record.setCheckOutTime(LocalTime.now(IST));
         // If half a day (< 4 hours), downgrade status
         if (record.getCheckInTime() != null) {
             long minutes = java.time.Duration.between(
@@ -115,7 +118,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public AttendanceDTO getTodayStatus(String empId) {
         return attendanceRepository
-                .findByEmployeeEmpIdAndAttendanceDate(empId, LocalDate.now())
+                .findByEmployeeEmpIdAndAttendanceDate(empId, LocalDate.now(IST))
                 .map(this::toDTO)
                 .orElse(null);
     }

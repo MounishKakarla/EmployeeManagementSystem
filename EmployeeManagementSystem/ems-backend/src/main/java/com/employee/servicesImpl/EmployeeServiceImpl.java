@@ -69,6 +69,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .dateOfJoin(dto.getDateOfJoin())
                 .dateOfBirth(dto.getDateOfBirth())
                 .description(dto.getDescription())
+                .gender(dto.getGender())
                 .build();
 
         Employee saved = employeeRepository.saveAndFlush(employee);
@@ -168,6 +169,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (dto.getDesignation()   != null) { changes.append("designation; ");   employee.setDesignation(dto.getDesignation()); }
         if (dto.getDescription()   != null) { changes.append("description; ");   employee.setDescription(dto.getDescription()); }
         if (dto.getSkills()        != null) { changes.append("skills; ");        employee.setSkills(dto.getSkills()); }
+        if (dto.getGender()        != null) { changes.append("gender; ");        employee.setGender(dto.getGender()); }
 
         EmployeeDTO result = employeeDetails(employeeRepository.save(employee));
 
@@ -197,6 +199,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .department(employee.getDepartment()).designation(employee.getDesignation())
                 .skills(employee.getSkills()).dateOfJoin(employee.getDateOfJoin())
                 .dateOfBirth(employee.getDateOfBirth()).description(employee.getDescription())
+                .gender(employee.getGender())
                 .dateOfExit(employee.getDateOfExit()).isEmployeeActive(employee.getIsEmployeeActive())
                 .roles(roles).build();
     }

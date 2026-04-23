@@ -100,4 +100,18 @@ public class LeaveController {
     public ResponseEntity<LeaveBalanceDTO> getBalance(@PathVariable String empId) {
         return ResponseEntity.ok(leaveService.getBalance(empId));
     }
+
+    /**
+     * POST /ems/leaves/grant/{empId}
+     * Admin directly grants an approved leave for any employee.
+     * Any overlapping PENDING requests for that employee are auto-rejected.
+     */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/grant/{empId}")
+    public ResponseEntity<LeaveRequestDTO> grantLeave(
+            Authentication auth,
+            @PathVariable String empId,
+            @RequestBody LeaveRequestDTO dto) {
+        return ResponseEntity.ok(leaveService.grantLeave(auth.getName(), empId, dto));
+    }
 }

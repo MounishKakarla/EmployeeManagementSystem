@@ -1,8 +1,8 @@
 // src/components/leave/RequestLeaveModal.jsx
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { useMutation } from '@tanstack/react-query'
-import { leaveAPI } from '../../api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { leaveAPI, holidayAPI } from '../../api'
 import { parseApiError } from '../../utils/errorUtils'
 import Modal from '../ui/Modal'
 import { BaseInput, BaseSelect } from '../ui/BaseComponents'
@@ -18,14 +18,15 @@ const LEAVE_TYPES = [
   { value: 'COMPENSATORY', label: 'Compensatory Leave' },
 ]
 
-function countWorkingDays(start, end) {
+function countWorkingDays(start, end, holidaySet = new Set()) {
   if (!start || !end) return 0
   let count = 0
   const cur = new Date(start)
   const endDate = new Date(end)
   while (cur <= endDate) {
     const dow = cur.getDay()
-    if (dow !== 0 && dow !== 6) count++
+    const dateStr = cur.toISOString().split('T')[0]
+    if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) count++
     cur.setDate(cur.getDate() + 1)
   }
   return count
@@ -39,7 +40,26 @@ export default function RequestLeaveModal({ open, onClose, balance, onSuccess })
   const startDate  = watch('startDate')
   const endDate    = watch('endDate')
   const leaveType  = watch('leaveType')
-  const days       = countWorkingDays(startDate, endDate)
+
+  // Fetch holidays for the selected year so working-day count matches backend
+  const leaveYear = startDate ? new Date(startDate).getFullYear() : new Date().getFullYear()
+  const { data: holidayData } = useQuery({
+    queryKey: ['holidays', leaveYear],
+    queryFn: () => holidayAPI.getByYear(leaveYear),
+    staleTime: 1000 * 60 * 10,
+  })
+
+  const holidaySet = useMemo(() => {
+    const raw = holidayData?.data || []
+    if (!Array.isArray(raw)) return new Set()
+    return new Set(raw.map(item => {
+      if (typeof item === 'string') return item
+      if (item?.holidayDate) return item.holidayDate
+      return null
+    }).filter(Boolean))
+  }, [holidayData])
+
+  const days = countWorkingDays(startDate, endDate, holidaySet)
 
   // Remaining for selected type
   const remaining = balance ? (

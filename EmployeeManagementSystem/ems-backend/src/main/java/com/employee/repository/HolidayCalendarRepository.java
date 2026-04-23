@@ -25,4 +25,10 @@ public interface HolidayCalendarRepository extends JpaRepository<HolidayCalendar
     /** All holidays within a date range (used by timesheet working-day calculator) */
     List<HolidayCalendar> findByHolidayDateBetweenOrderByHolidayDateAsc(
             LocalDate start, LocalDate end);
+
+    /** Bulk delete all holidays in a given year */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM HolidayCalendar h WHERE YEAR(h.holidayDate) = :year")
+    int deleteByYear(@Param("year") int year);
 }

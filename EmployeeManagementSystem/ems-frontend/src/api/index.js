@@ -116,11 +116,13 @@ export const leaveAPI = {
   getAll:       (empId, status, params)   => api.get('/ems/leaves/all', { params: { empId, status, ...params } }),
   review:       (id, action, notes)       => api.put(`/ems/leaves/${id}/review`, { reviewNotes: notes }, { params: { action } }),
   getBalance:   (empId)                   => api.get(`/ems/leaves/balance/${empId}`),
+  grantLeave:   (empId, data)             => api.post(`/ems/leaves/grant/${empId}`, data),
 }
 
 // ── Timesheet APIs ─────────────────────────────────────────────────────────────
 export const timesheetAPI = {
   getCurrentWeek:  ()                          => api.get('/ems/timesheets/current-week'),
+  getWeek:         (date)                      => api.get('/ems/timesheets/week', { params: { date } }),
   saveEntry:       (data)                      => api.post('/ems/timesheets', data),
   submitWeek:      (weekStartDate)             => api.post('/ems/timesheets/submit', null, { params: { weekStartDate } }),
   getMyTimesheets: (params)                    => api.get('/ems/timesheets/my', { params }),

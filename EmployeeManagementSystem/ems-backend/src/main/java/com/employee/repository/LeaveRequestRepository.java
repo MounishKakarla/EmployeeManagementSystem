@@ -65,5 +65,42 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     Page<LeaveRequest> findPendingByDepartment(
             @Param("department") String department,
             Pageable pageable);
+
+    /**
+     * Count APPROVED leaves for an employee that overlap a date range,
+     * excluding a specific request id (used when approving to detect conflicts).
+     */
+    @Query("SELECT COUNT(l) FROM LeaveRequest l WHERE " +
+           "l.employee.empId = :empId AND " +
+           "l.id <> :excludeId AND " +
+           "l.status = 'APPROVED' AND " +
+           "l.startDate <= :endDate AND l.endDate >= :startDate")
+    long countConflictingApproved(
+            @Param("empId")      String empId,
+            @Param("startDate")  LocalDate startDate,
+            @Param("endDate")    LocalDate endDate,
+            @Param("excludeId")  Long excludeId);
+
+    /**
+     * Find all PENDING requests for an employee that overlap a date range.
+     * Used by admin grant-leave to auto-reject conflicting requests.
+     */
+    @Query("SELECT l FROM LeaveRequest l WHERE " +
+           "l.employee.empId = :empId AND " +
+           "l.status = 'PENDING' AND " +
+           "l.startDate <= :endDate AND l.endDate >= :startDate")
+    List<LeaveRequest> findOverlappingPending(
+            @Param("empId")     String empId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate")   LocalDate endDate);
+
+    /**
+     * Find all APPROVED leaves (any employee) whose date range contains a specific date.
+     * Used when a new holiday is added to recalculate affected approved leaves.
+     */
+    @Query("SELECT l FROM LeaveRequest l WHERE " +
+           "l.status = 'APPROVED' AND " +
+           "l.startDate <= :date AND l.endDate >= :date")
+    List<LeaveRequest> findApprovedLeavesSpanningDate(@Param("date") LocalDate date);
 }
 

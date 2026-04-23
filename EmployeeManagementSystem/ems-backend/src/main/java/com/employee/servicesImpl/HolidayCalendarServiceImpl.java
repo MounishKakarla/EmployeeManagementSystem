@@ -14,6 +14,7 @@ import com.employee.dto.HolidayCalendarDTO;
 import com.employee.entity.HolidayCalendar;
 import com.employee.repository.HolidayCalendarRepository;
 import com.employee.services.HolidayCalendarService;
+import com.employee.services.LeaveService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class HolidayCalendarServiceImpl implements HolidayCalendarService {
 
     private final HolidayCalendarRepository repo;
+    private final LeaveService leaveService;
 
     @Override
     @Transactional
@@ -37,7 +39,12 @@ public class HolidayCalendarServiceImpl implements HolidayCalendarService {
                 .isMandatory(dto.getIsMandatory() != null ? dto.getIsMandatory() : true)
                 .createdBy(addedBy)
                 .build();
-        return toDTO(repo.save(h));
+        HolidayCalendarDTO saved = toDTO(repo.save(h));
+        // Recalculate any approved leaves that span this new holiday date.
+        // The new holiday is already visible within this transaction so
+        // countWorkingDays will exclude it correctly.
+        leaveService.recalculateAffectedLeaves(dto.getHolidayDate());
+        return saved;
     }
 
     @Override
@@ -90,6 +97,12 @@ public class HolidayCalendarServiceImpl implements HolidayCalendarService {
             cur = cur.plusDays(1);
         }
         return nonWorking;
+    }
+
+    @Override
+    @Transactional
+    public int deleteAllByYear(int year) {
+        return repo.deleteByYear(year);
     }
 
     private HolidayCalendarDTO toDTO(HolidayCalendar h) {
