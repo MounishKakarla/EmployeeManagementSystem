@@ -9,18 +9,24 @@ const AuthContext = createContext()
 export function AuthProvider({ children }) {
   const [user,      setUser]      = useState(null)
   const [loading,   setLoading]   = useState(true)
+  const [slowStart, setSlowStart] = useState(false)
   const [isWarning, setIsWarning] = useState(false)
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading) { setLoading(false) }
-    }, 5000)
+    // Show "waking up" message after 4s if still waiting on backend cold-start
+    const slowTimer = setTimeout(() => setSlowStart(true), 4000)
+    // Hard cap: stop blocking the UI after 15s regardless
+    const hardTimer = setTimeout(() => { setLoading(false) }, 15000)
 
     authAPI.me()
       .then(res => setUser(res.data))
       .catch(() => setUser(null))
-      .finally(() => { clearTimeout(timer); setLoading(false) })
+      .finally(() => {
+        clearTimeout(slowTimer)
+        clearTimeout(hardTimer)
+        setLoading(false)
+      })
   }, [])
 
   const login = async (credentials) => {
@@ -66,8 +72,13 @@ export function AuthProvider({ children }) {
 
   if (loading) {
     return (
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--bg-primary)' }}>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, height:'100vh', background:'var(--bg-primary)' }}>
         <div className="spinner" style={{ width:28, height:28 }} />
+        {slowStart && (
+          <p style={{ color:'var(--text-muted)', fontSize:13, margin:0 }}>
+            Server is waking up, please wait…
+          </p>
+        )}
       </div>
     )
   }

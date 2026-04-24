@@ -77,13 +77,17 @@ services:
       - key: ALLOWED_ORIGINS
         value: https://ems-frontend-3a3h.onrender.com,https://ems-backend-609x.onrender.com
 
-  # ── React Frontend (nginx) ─────────────────────────────────────────────────
-  - type: web
+  # ── React Frontend (Static Site — CDN, never sleeps) ──────────────────────
+  - type: static
     name: ems-frontend
-    runtime: docker
-    plan: free
-    dockerfilePath: ./EmployeeManagementSystem/ems-frontend/Dockerfile
-    dockerContext: ./EmployeeManagementSystem/ems-frontend
+    rootDir: EmployeeManagementSystem/ems-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL
         value: https://ems-backend-609x.onrender.com
