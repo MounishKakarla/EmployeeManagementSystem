@@ -1,16 +1,37 @@
 // src/api/index.js
-// Single Axios instance + all API groups for the Tektalis EMS frontend.
-
 import axios from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+const ACCESS_KEY  = 'ems_access_token'
+const REFRESH_KEY = 'ems_refresh_token'
+
+export const tokenStore = {
+  getAccess:  ()               => localStorage.getItem(ACCESS_KEY),
+  getRefresh: ()               => localStorage.getItem(REFRESH_KEY),
+  setTokens:  (access, refresh) => {
+    if (access)  localStorage.setItem(ACCESS_KEY,  access)
+    if (refresh) localStorage.setItem(REFRESH_KEY, refresh)
+  },
+  clear: () => {
+    localStorage.removeItem(ACCESS_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+  },
+}
 
 // ── Axios instance ─────────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
+  withCredentials: false,
   timeout: 60000,
+})
+
+// ── Request interceptor: attach Bearer token ───────────────────────────────────
+api.interceptors.request.use((config) => {
+  const token = tokenStore.getAccess()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
 })
 
 // ── Refresh-storm guard ────────────────────────────────────────────────────────
@@ -24,7 +45,7 @@ function processQueue(error) {
   pendingQueue = []
 }
 
-// ── Response interceptor (auto token refresh) ──────────────────────────────────
+// ── Response interceptor: auto-refresh on 401 ─────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -33,7 +54,8 @@ api.interceptors.response.use(
       original?._retry ||
       original?.url?.includes('/auth/refresh') ||
       original?.url?.includes('/auth/login')   ||
-      original?.url?.includes('/auth/logout')
+      original?.url?.includes('/auth/logout')  ||
+      original?.url?.endsWith('/auth/me')        // session check — 401 just means "not logged in"
 
     if (error.response?.status === 401 && !skipRetry) {
       if (isRefreshing) {
@@ -41,15 +63,22 @@ api.interceptors.response.use(
           pendingQueue.push({ resolve, reject })
         }).then(() => api(original))
       }
-      original._retry  = true
-      isRefreshing     = true
+      original._retry = true
+      isRefreshing    = true
       try {
-        await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+        const refreshToken = tokenStore.getRefresh()
+        if (!refreshToken) throw new Error('No refresh token')
+        const res = await axios.post(
+          `${BASE_URL}/auth/refresh`,
+          { refreshToken },
+          { headers: { 'Content-Type': 'application/json' } }
+        )
+        tokenStore.setTokens(res.data.accessToken, null)
         processQueue(null)
         return api(original)
       } catch (refreshError) {
         processQueue(refreshError)
-        // Only redirect if we aren't already on the login page to avoid infinite loops
+        tokenStore.clear()
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login'
         }
@@ -66,9 +95,24 @@ export default api
 
 // ── Auth APIs ──────────────────────────────────────────────────────────────────
 export const authAPI = {
-  login:          (data)  => api.post('/auth/login', data),
-  logout:         ()      => api.post('/auth/logout'),
-  refresh:        ()      => api.post('/auth/refresh'),
+  login: async (data) => {
+    const res = await api.post('/auth/login', data)
+    tokenStore.setTokens(res.data.accessToken, res.data.refreshToken)
+    return res
+  },
+  logout: async () => {
+    try { await api.post('/auth/logout') } catch {} finally { tokenStore.clear() }
+  },
+  refresh: async () => {
+    const refreshToken = tokenStore.getRefresh()
+    const res = await axios.post(
+      `${BASE_URL}/auth/refresh`,
+      { refreshToken },
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+    tokenStore.setTokens(res.data.accessToken, null)
+    return res
+  },
   me:             ()      => api.get('/auth/me'),
   changePassword: (data)  => api.put('/auth/changePassword', data),
   resetPassword:  (empId) => api.post(`/auth/reset-password/${empId}`),

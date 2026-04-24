@@ -59,14 +59,8 @@ public class SecurityConfig {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(origins);
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
-        cfg.setAllowedOriginPatterns(List.of(
-            "http://localhost:5173",
-            "http://192.168.68.*",
-            "https://ems-frontend-3a3h.onrender.com"
-        ));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type"));
-        cfg.setAllowCredentials(true);
-        cfg.setExposedHeaders(List.of("Set-Cookie"));
+        cfg.setAllowCredentials(false);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
