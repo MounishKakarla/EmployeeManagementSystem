@@ -1,6 +1,6 @@
 // app/(app)/profile.tsx — Profile Screen
 import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const [showCurrentPwd, setShowCurrentPwd] = useState(false)
   const [showNewPwd, setShowNewPwd]         = useState(false)
   const [showConfirmPwd, setShowConfirmPwd] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const { data: profileData } = useQuery({
     queryKey: ['profile'],
@@ -67,12 +68,7 @@ export default function ProfileScreen() {
     changePwdMutation.mutate()
   }
 
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
-    ])
-  }
+  const handleLogout = () => setShowLogoutModal(true)
 
   const initials = profile?.name?.split(' ')?.map((n: string) => n[0])?.join('')?.slice(0, 2).toUpperCase() || '??'
 
@@ -177,6 +173,43 @@ export default function ProfileScreen() {
           <Text style={[styles.logoutText, { color: Colors.danger }]}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* ── Sign-out confirmation modal ─────────────────────────────────────── */}
+      <Modal transparent animationType="fade" visible={showLogoutModal} onRequestClose={() => setShowLogoutModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+
+            {/* Icon badge */}
+            <View style={[styles.modalIconWrap, { backgroundColor: Colors.dangerLight }]}>
+              <Ionicons name="log-out-outline" size={30} color={Colors.danger} />
+            </View>
+
+            <Text style={[styles.modalTitle, { color: Colors.textPrimary }]}>Sign Out</Text>
+            <Text style={[styles.modalBody, { color: Colors.textMuted }]}>
+              Are you sure you want to sign out of your account?
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, borderWidth: 1 }]}
+                onPress={() => setShowLogoutModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.modalBtnLabel, { color: Colors.textPrimary }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnDanger, { backgroundColor: Colors.danger }]}
+                onPress={() => { setShowLogoutModal(false); logout() }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="log-out-outline" size={16} color="#fff" />
+                <Text style={[styles.modalBtnLabel, { color: '#fff' }]}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -211,4 +244,35 @@ const styles = StyleSheet.create({
   themeRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   toggleTrack:  { width: 42, height: 24, borderRadius: 12, padding: 2, justifyContent: 'center' },
   toggleThumb:  { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+
+  // ── Logout modal ────────────────────────────────────────────────────────────
+  modalOverlay:   {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard:      {
+    width: '100%',
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  modalIconWrap:  {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  modalTitle:     { fontSize: FontSize.lg, fontWeight: FontWeight.bold, textAlign: 'center' },
+  modalBody:      { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20, marginBottom: Spacing.sm },
+  modalActions:   { flexDirection: 'row', gap: Spacing.sm, width: '100%', marginTop: Spacing.xs },
+  modalBtn:       { flex: 1, borderRadius: Radius.sm, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  modalBtnDanger: {},
+  modalBtnLabel:  { fontWeight: FontWeight.bold, fontSize: FontSize.md },
 })
