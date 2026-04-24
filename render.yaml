@@ -1,7 +1,7 @@
 databases:
   - name: ems-postgres
     plan: free
-    databaseName: EMSNew
+    databaseName: emsnew
     user: emsuser
 
 services:
