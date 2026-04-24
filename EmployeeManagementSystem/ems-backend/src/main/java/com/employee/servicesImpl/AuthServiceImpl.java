@@ -122,7 +122,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(empId)
                 .orElseThrow(() -> new EmployeeNotFoundException("User not found: " + empId));
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword()))
-            throw new BadCredentialsException("Current password is incorrect");
+            throw new IllegalArgumentException("Current password is incorrect");
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);

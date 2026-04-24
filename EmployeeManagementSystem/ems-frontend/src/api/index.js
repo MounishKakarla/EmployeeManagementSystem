@@ -52,10 +52,12 @@ api.interceptors.response.use(
     const original = error.config
     const skipRetry =
       original?._retry ||
-      original?.url?.includes('/auth/refresh') ||
-      original?.url?.includes('/auth/login')   ||
-      original?.url?.includes('/auth/logout')  ||
-      original?.url?.endsWith('/auth/me')        // session check — 401 just means "not logged in"
+      original?.url?.includes('/auth/refresh')        ||
+      original?.url?.includes('/auth/login')          ||
+      original?.url?.includes('/auth/logout')         ||
+      original?.url?.endsWith('/auth/me')             ||  // session check — 401 just means "not logged in"
+      original?.url?.includes('/auth/changePassword') ||  // wrong old password → 400 now, but guard anyway
+      original?.url?.includes('/auth/reset-password')
 
     if (error.response?.status === 401 && !skipRetry) {
       if (isRefreshing) {
