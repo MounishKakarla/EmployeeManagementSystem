@@ -6,8 +6,3 @@ jobs:
     params:
       platform: android
       profile: production
-  build_ios:
-    type: build
-    params:
-      platform: ios
-      profile: production
