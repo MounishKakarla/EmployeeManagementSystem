@@ -34,7 +34,7 @@ services:
           name: ems-postgres
           property: password
       - key: JWT_SECRET
-        generateValue: true
+        sync: false   # set a long random string in the Render dashboard — never change it after first deploy
       - key: MAIL_USERNAME
         value: hrtektalis@gmail.com
       - key: MAIL_PASSWORD
