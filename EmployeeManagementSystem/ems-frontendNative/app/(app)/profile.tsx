@@ -27,13 +27,16 @@ function InfoRow({ icon, label, value, colors }: { icon: string; label: string; 
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth()
-  const { theme, toggleTheme, isDark } = useTheme()
+  const { toggleTheme, isDark } = useTheme()
   const Colors = useThemeColors()
   
-  const [showPwdForm, setShowPwdForm] = useState(false)
-  const [currentPwd, setCurrentPwd]   = useState('')
-  const [newPwd, setNewPwd]           = useState('')
-  const [confirmPwd, setConfirmPwd]   = useState('')
+  const [showPwdForm, setShowPwdForm]     = useState(false)
+  const [currentPwd, setCurrentPwd]       = useState('')
+  const [newPwd, setNewPwd]               = useState('')
+  const [confirmPwd, setConfirmPwd]       = useState('')
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+  const [showNewPwd, setShowNewPwd]         = useState(false)
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false)
 
   const { data: profileData } = useQuery({
     queryKey: ['profile'],
@@ -143,9 +146,24 @@ export default function ProfileScreen() {
 
           {showPwdForm && (
             <View style={{ gap: Spacing.sm, marginTop: Spacing.sm }}>
-              <TextInput style={[styles.input, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="Current password" placeholderTextColor={Colors.textMuted} secureTextEntry value={currentPwd} onChangeText={setCurrentPwd} />
-              <TextInput style={[styles.input, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="New password" placeholderTextColor={Colors.textMuted} secureTextEntry value={newPwd} onChangeText={setNewPwd} />
-              <TextInput style={[styles.input, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="Confirm new password" placeholderTextColor={Colors.textMuted} secureTextEntry value={confirmPwd} onChangeText={setConfirmPwd} />
+              <View style={[styles.pwdWrapper, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+                <TextInput style={[styles.pwdInput, { color: Colors.textPrimary }]} placeholder="Current password" placeholderTextColor={Colors.textMuted} secureTextEntry={!showCurrentPwd} value={currentPwd} onChangeText={setCurrentPwd} />
+                <TouchableOpacity onPress={() => setShowCurrentPwd(v => !v)} style={styles.eyeBtn}>
+                  <Ionicons name={showCurrentPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.pwdWrapper, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+                <TextInput style={[styles.pwdInput, { color: Colors.textPrimary }]} placeholder="New password" placeholderTextColor={Colors.textMuted} secureTextEntry={!showNewPwd} value={newPwd} onChangeText={setNewPwd} />
+                <TouchableOpacity onPress={() => setShowNewPwd(v => !v)} style={styles.eyeBtn}>
+                  <Ionicons name={showNewPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.pwdWrapper, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+                <TextInput style={[styles.pwdInput, { color: Colors.textPrimary }]} placeholder="Confirm new password" placeholderTextColor={Colors.textMuted} secureTextEntry={!showConfirmPwd} value={confirmPwd} onChangeText={setConfirmPwd} />
+                <TouchableOpacity onPress={() => setShowConfirmPwd(v => !v)} style={styles.eyeBtn}>
+                  <Ionicons name={showConfirmPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity style={[styles.btn, { backgroundColor: Colors.accent }, changePwdMutation.isPending && { opacity: 0.6 }]} onPress={handleChangePassword} disabled={changePwdMutation.isPending}>
                 <Text style={styles.btnText}>{changePwdMutation.isPending ? 'Saving…' : 'Update Password'}</Text>
               </TouchableOpacity>
@@ -183,6 +201,9 @@ const styles = StyleSheet.create({
   infoLabel:    { fontSize: FontSize.xs, marginBottom: 2 },
   infoValue:    { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   input:        { borderRadius: Radius.sm, borderWidth: 1, padding: 12, fontSize: FontSize.md },
+  pwdWrapper:   { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.sm, borderWidth: 1 },
+  pwdInput:     { flex: 1, fontSize: FontSize.md, padding: 12 },
+  eyeBtn:       { paddingHorizontal: 12, paddingVertical: 12 },
   btn:          { borderRadius: Radius.sm, padding: 12, alignItems: 'center' },
   btnText:      { color: '#fff', fontWeight: FontWeight.bold },
   logoutBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: 14, borderWidth: 1 },

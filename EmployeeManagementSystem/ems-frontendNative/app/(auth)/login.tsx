@@ -46,7 +46,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={[styles.root, { backgroundColor: Colors.bgPrimary }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: Colors.bgPrimary }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         {/* Logo / Brand */}
