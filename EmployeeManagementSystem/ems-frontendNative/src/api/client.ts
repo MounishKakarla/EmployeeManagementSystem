@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store'
 import { router } from 'expo-router'
 
 // Set EXPO_PUBLIC_API_URL in .env to override (e.g. http://192.168.x.x:8080 for local, or your prod domain)
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.68.58:8080'
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.68.51:8080'
 
 
 export const TOKEN_KEY   = 'ems_access_token'
