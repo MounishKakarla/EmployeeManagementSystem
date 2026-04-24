@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - 'ems-frontendNative/**'
+      - 'EmployeeManagementSystem/ems-frontendNative/**'
 
 jobs:
   build:
@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-          cache-dependency-path: 'ems-frontendNative/package-lock.json'
+          cache-dependency-path: 'EmployeeManagementSystem/ems-frontendNative/package-lock.json'
 
       - name: 🏗 Setup Expo
         uses: expo/expo-github-action@v8
@@ -29,9 +29,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 📦 Install dependencies
-        working-directory: ems-frontendNative
+        working-directory: EmployeeManagementSystem/ems-frontendNative
         run: npm install --legacy-peer-deps
 
       - name: 🚀 Build APK
-        working-directory: ems-frontendNative
+        working-directory: EmployeeManagementSystem/ems-frontendNative
         run: eas build --platform android --profile preview --non-interactive
