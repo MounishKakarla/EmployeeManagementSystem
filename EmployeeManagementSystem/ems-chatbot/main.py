@@ -9,6 +9,7 @@ Run:
   uvicorn main:app --reload --port 8000
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import resume, chatbot
@@ -19,13 +20,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_default_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8080",
+]
+_extra = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+_allowed_origins = _default_origins + _extra
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev
-        "http://localhost:3000",  # alternate
-        "http://localhost:8080",  # Spring Boot proxy
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,0 +1,93 @@
+databases:
+  - name: ems-postgres
+    plan: free
+    databaseName: EMSNew
+    user: emsuser
+
+services:
+  # ── Spring Boot Backend ────────────────────────────────────────────────────
+  - type: web
+    name: ems-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./ems-backend/Dockerfile
+    dockerContext: ./ems-backend
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ems-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ems-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ems-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ems-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ems-postgres
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MAIL_USERNAME
+        value: hrtektalis@gmail.com
+      - key: MAIL_PASSWORD
+        sync: false   # paste your Gmail app password in the Render dashboard
+      - key: TZ
+        value: Asia/Kolkata
+
+  # ── FastAPI Chatbot ────────────────────────────────────────────────────────
+  - type: web
+    name: ems-chatbot
+    runtime: docker
+    plan: free
+    dockerfilePath: ./ems-chatbot/Dockerfile
+    dockerContext: ./ems-chatbot
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: ems-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ems-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ems-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ems-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ems-postgres
+          property: password
+      - key: GROQ_API_KEY
+        sync: false   # paste your Groq API key in the Render dashboard
+      - key: ALLOWED_ORIGINS
+        value: https://ems-frontend.onrender.com
+
+  # ── React Frontend (nginx) ─────────────────────────────────────────────────
+  - type: web
+    name: ems-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./ems-frontend/Dockerfile
+    dockerContext: ./ems-frontend
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://ems-backend.onrender.com
+      - key: VITE_CHATBOT_API_URL
+        value: https://ems-chatbot.onrender.com/api/chatbot
+      - key: VITE_PARSER_URL
+        value: https://ems-chatbot.onrender.com
+      - key: VITE_SESSION_TIMEOUT_MS
+        value: "900000"

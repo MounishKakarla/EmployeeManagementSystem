@@ -1,38 +1,31 @@
 # syntax=docker/dockerfile:1
 
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
+# Stage 1: Build the React/Vite app
+FROM node:20-alpine AS builder
+WORKDIR /app
 
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+COPY package*.json ./
+RUN npm ci
 
-ARG NODE_VERSION=24.14.0
-
-FROM node:${NODE_VERSION}-alpine
-
-# Use production node environment by default.
-ENV NODE_ENV development
-
-
-WORKDIR /usr/src/app
-
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.npm to speed up subsequent builds.
-# Leverage a bind mounts to package.json and package-lock.json to avoid having to copy them into
-# into this layer.
-RUN --mount=type=bind,source=package.json,target=package.json \
-    --mount=type=bind,source=package-lock.json,target=package-lock.json \
-    --mount=type=cache,target=/root/.npm \
-    npm ci
-
-# Run the application as a non-root user.
-# USER node
-
-# Copy the rest of the source files into the image.
 COPY . .
 
-# Expose the port that the application listens on.
-EXPOSE 5173
+# Vite bakes these into the bundle at build time.
+# Render passes env vars as Docker build args automatically.
+ARG VITE_API_BASE_URL
+ARG VITE_CHATBOT_API_URL
+ARG VITE_PARSER_URL
+ARG VITE_SESSION_TIMEOUT_MS=900000
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_CHATBOT_API_URL=$VITE_CHATBOT_API_URL
+ENV VITE_PARSER_URL=$VITE_PARSER_URL
+ENV VITE_SESSION_TIMEOUT_MS=$VITE_SESSION_TIMEOUT_MS
 
-# Run the application.
-CMD npm run dev
+RUN npm run build
+
+# Stage 2: Serve the built output with nginx
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
