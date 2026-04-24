@@ -144,6 +144,17 @@ public class AuthController {
         return ResponseEntity.ok("Password Changed Successfully");
     }
 
+    @PreAuthorize("isAuthenticated()")
+    @PutMapping("/push-token")
+    public ResponseEntity<Void> savePushToken(@RequestBody Map<String, String> body,
+                                              Authentication auth) {
+        String token = body.get("pushToken");
+        if (token != null && !token.isBlank()) {
+            authService.savePushToken(auth.getName(), token);
+        }
+        return ResponseEntity.ok().build();
+    }
+
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @PostMapping("/reset-password/{empId}")
     public ResponseEntity<String> resetPassword(@PathVariable String empId) {

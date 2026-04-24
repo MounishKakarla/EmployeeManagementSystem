@@ -37,6 +37,14 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/Tektalis_Icon_Square.png",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

@@ -8,4 +8,5 @@ public interface AuthService {
     void resetPassword(String empId);
     void changePassword(String empId, ChangePasswordDTO request);
     Map<String, Object> getCurrentUser(String empId);
+    void savePushToken(String empId, String pushToken);
 }

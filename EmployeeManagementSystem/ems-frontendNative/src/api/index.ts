@@ -12,6 +12,7 @@ export const authAPI = {
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
                     client.put('/auth/changePassword', { oldPassword: data.currentPassword, newPassword: data.newPassword }),
   resetPassword:  (empId: string) => client.post(`/auth/reset-password/${empId}`),
+  savePushToken:  (pushToken: string) => client.put('/auth/push-token', { pushToken }),
 }
 
 // ── Employee ──────────────────────────────────────────────────────────────────

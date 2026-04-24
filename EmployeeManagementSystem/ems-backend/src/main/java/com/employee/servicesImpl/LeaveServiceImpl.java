@@ -30,6 +30,7 @@ import com.employee.repository.LeaveRequestRepository;
 import com.employee.services.AuditService;
 import com.employee.services.LeaveCalculationService;
 import com.employee.services.LeaveService;
+import com.employee.services.PushNotificationService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +44,9 @@ public class LeaveServiceImpl implements LeaveService {
     private final EmployeeRepository employeeRepo;
     private final HolidayCalendarRepository holidayRepo;
     private final AttendanceRepository attendanceRepo;
-    private final LeaveCalculationService calcService;
-    private final AuditService auditService;
+    private final LeaveCalculationService    calcService;
+    private final AuditService               auditService;
+    private final PushNotificationService    pushService;
 
     // ── Submit leave ───────────────────────────────────────────────────────────
     @Override
@@ -160,7 +162,13 @@ public class LeaveServiceImpl implements LeaveService {
                 action.name() + " leave id=" + id + " for " + req.getEmployee().getEmpId()
                         + " (" + req.getDaysRequested() + " days)");
 
-        return toDTO(leaveRepo.save(req));
+        LeaveRequestDTO result = toDTO(leaveRepo.save(req));
+        pushService.sendLeaveStatusNotification(
+                req.getEmployee().getEmpId(),
+                action.name(),
+                req.getLeaveType().name(),
+                reviewNotes);
+        return result;
     }
 
     // ── Admin grant leave ──────────────────────────────────────────────────────

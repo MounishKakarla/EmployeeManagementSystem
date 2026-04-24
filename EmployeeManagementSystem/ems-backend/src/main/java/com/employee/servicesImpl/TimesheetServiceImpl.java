@@ -23,6 +23,7 @@ import com.employee.repository.EmployeeRepository;
 import com.employee.repository.HolidayCalendarRepository;
 import com.employee.repository.TimesheetRepository;
 import com.employee.services.AuditService;
+import com.employee.services.PushNotificationService;
 import com.employee.services.TimesheetService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -36,6 +37,7 @@ public class TimesheetServiceImpl implements TimesheetService {
     private final EmployeeRepository        employeeRepo;
     private final HolidayCalendarRepository holidayRepo;
     private final AuditService              auditService;
+    private final PushNotificationService   pushService;
 
     @Override
     @Transactional
@@ -142,7 +144,13 @@ public class TimesheetServiceImpl implements TimesheetService {
                 action.name() + " timesheet id=" + id + " for " +
                 ts.getEmployee().getEmpId() + " week=" + ts.getWeekStartDate());
 
-        return toDTO(timesheetRepo.save(ts));
+        TimesheetDTO result = toDTO(timesheetRepo.save(ts));
+        pushService.sendTimesheetStatusNotification(
+                ts.getEmployee().getEmpId(),
+                action.name(),
+                ts.getWeekStartDate().toString(),
+                reviewNotes);
+        return result;
     }
 
     @Override

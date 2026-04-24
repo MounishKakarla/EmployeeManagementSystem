@@ -33,6 +33,9 @@ public class User {
     @PreUpdate
     public void onUpdate() { this.updatedAt = LocalDateTime.now(); }
 
+    @Column(name = "push_token")
+    private String pushToken;
+
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     @JoinColumn(name = "emp_id")

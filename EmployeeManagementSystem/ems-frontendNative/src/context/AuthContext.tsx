@@ -7,6 +7,7 @@ import { router } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { authAPI } from '../api'
 import { TOKEN_KEY, REFRESH_KEY } from '../api/client'
+import { registerForPushNotifications } from '../hooks/usePushNotifications'
 
 interface User {
   empId: string
@@ -43,6 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (token) {
           const res = await authAPI.me()
           setUser(res.data)
+          // Re-register push token on every app start (token can rotate)
+          registerForPushNotifications()
+            .then(pt => { if (pt) authAPI.savePushToken(pt).catch(() => {}) })
+            .catch(() => {})
         }
       } catch {
         // Token expired or invalid — clear storage
@@ -64,6 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, refreshToken)
     const meRes = await authAPI.me()
     setUser(meRes.data)
+    // Register push token after fresh login (fire-and-forget)
+    registerForPushNotifications()
+      .then(pt => { if (pt) authAPI.savePushToken(pt).catch(() => {}) })
+      .catch(() => {})
   }
 
   const logout = useCallback(async () => {

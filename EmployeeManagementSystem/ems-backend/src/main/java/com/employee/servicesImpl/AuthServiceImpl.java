@@ -133,6 +133,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public void savePushToken(String empId, String pushToken) {
+        User user = userRepository.findById(empId)
+                .orElseThrow(() -> new EmployeeNotFoundException("User not found: " + empId));
+        user.setPushToken(pushToken);
+        userRepository.save(user);
+    }
+
+    @Override
     public void resetPassword(String empId) {
         User user = userRepository.findById(empId)
                 .orElseThrow(() -> new EmployeeNotFoundException("User not found: " + empId));

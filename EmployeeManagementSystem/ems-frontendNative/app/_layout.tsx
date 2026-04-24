@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message'
 import * as SplashScreen from 'expo-splash-screen'
 import { AuthProvider, useAuth } from '../src/context/AuthContext'
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext'
+import { usePushNotifications } from '../src/hooks/usePushNotifications'
 
 // Prevent the native splash from auto-hiding before resources are ready
 SplashScreen.preventAutoHideAsync()
@@ -17,6 +18,7 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const { isLoading: authLoading } = useAuth()
+  usePushNotifications()
   // Wait for both auth session restore AND saved theme load before hiding splash.
   // Without this, users on light mode see a dark flash right after the splash.
   const { isReady: themeReady } = useTheme()
