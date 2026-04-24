@@ -10,6 +10,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import com.employee.config.LoginRequest;
 import com.employee.config.RefreshTokenRequest;
 import com.employee.dto.ChangePasswordDTO;
@@ -28,24 +30,30 @@ public class AuthController {
     private final AuthService  authService;
     private final AuditService auditService;
 
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${cookie.same-site:Strict}")
+    private String cookieSameSite;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         var res = authService.login(request);
 
         ResponseCookie access = ResponseCookie.from("access_token", res.getToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(Duration.ofHours(1))
-                .sameSite("Strict")
+                .sameSite(cookieSameSite)
                 .build();
 
         ResponseCookie refresh = ResponseCookie.from("refresh_token", res.getRefreshToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/auth/refresh")
                 .maxAge(Duration.ofDays(7))
-                .sameSite("Strict")
+                .sameSite(cookieSameSite)
                 .build();
 
         return ResponseEntity.ok()
@@ -82,10 +90,10 @@ public class AuthController {
 
         ResponseCookie newAccess = ResponseCookie.from("access_token", res.getToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(Duration.ofHours(1))
-                .sameSite("Strict")
+                .sameSite(cookieSameSite)
                 .build();
 
         return ResponseEntity.ok()
@@ -100,18 +108,18 @@ public class AuthController {
     public ResponseEntity<?> logout() {
         ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(0)
-                .sameSite("Strict")
+                .sameSite(cookieSameSite)
                 .build();
 
         ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .path("/auth/refresh")
                 .maxAge(0)
-                .sameSite("Strict")
+                .sameSite(cookieSameSite)
                 .build();
 
         return ResponseEntity.ok()

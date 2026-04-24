@@ -43,6 +43,10 @@ services:
         value: Asia/Kolkata
       - key: CORS_ALLOWED_ORIGINS
         value: https://ems-frontend-3a3h.onrender.com
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: None
 
   # ── FastAPI Chatbot ────────────────────────────────────────────────────────
   - type: web
