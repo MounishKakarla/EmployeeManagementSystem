@@ -41,6 +41,8 @@ services:
         sync: false   # paste your Gmail app password in the Render dashboard
       - key: TZ
         value: Asia/Kolkata
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://ems-frontend-3a3h.onrender.com
 
   # ── FastAPI Chatbot ────────────────────────────────────────────────────────
   - type: web
@@ -73,7 +75,7 @@ services:
       - key: GROQ_API_KEY
         sync: false   # paste your Groq API key in the Render dashboard
       - key: ALLOWED_ORIGINS
-        value: https://ems-frontend.onrender.com
+        value: https://ems-frontend-3a3h.onrender.com
 
   # ── React Frontend (nginx) ─────────────────────────────────────────────────
   - type: web

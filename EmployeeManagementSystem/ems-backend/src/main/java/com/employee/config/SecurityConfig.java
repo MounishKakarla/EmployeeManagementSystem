@@ -1,7 +1,9 @@
 package com.employee.config;
 
+import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.*;
@@ -28,7 +30,8 @@ public class SecurityConfig {
     private final LoginDetailsService    loginDetailsService;
     private final JwtAuthenticationFilter jwtFilter;
 
-
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    private String allowedOriginsRaw;
 
     @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
@@ -46,8 +49,12 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        List<String> origins = Arrays.stream(allowedOriginsRaw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOriginPatterns(List.of("*"));
+        cfg.setAllowedOrigins(origins);
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type"));
         cfg.setAllowCredentials(true);
