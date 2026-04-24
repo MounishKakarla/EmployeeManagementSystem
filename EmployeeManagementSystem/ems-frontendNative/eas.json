@@ -25,6 +25,10 @@
       "android": {
         "buildType": "apk"
       },
+      "ios": {
+        "distribution": "internal",
+        "simulator": false
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ems-backend-609x.onrender.com"
       }
