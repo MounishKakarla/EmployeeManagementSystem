@@ -49,7 +49,10 @@ api.interceptors.response.use(
         return api(original)
       } catch (refreshError) {
         processQueue(refreshError)
-        window.location.href = '/login'
+        // Only redirect if we aren't already on the login page to avoid infinite loops
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
