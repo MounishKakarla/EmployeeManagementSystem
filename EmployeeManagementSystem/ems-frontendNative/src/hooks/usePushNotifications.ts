@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 
 // Show notification banner while app is in foreground
 Notifications.setNotificationHandler({
@@ -35,7 +36,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
   if (finalStatus !== 'granted') return null
 
-  const token = (await Notifications.getExpoPushTokenAsync()).data
+  // projectId is required since Expo SDK 46+
+  const projectId: string | undefined =
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId
+
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data
   return token
 }
 
@@ -44,15 +49,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
  * Call this once from the root layout.
  */
 export function usePushNotifications() {
-  const foregroundSub = useRef<Notifications.EventSubscription | null>(null)
-  const responseSub   = useRef<Notifications.EventSubscription | null>(null)
+  const foregroundSub = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null)
+  const responseSub   = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null)
 
   useEffect(() => {
-    // Foreground: banner already handled by setNotificationHandler above
-    foregroundSub.current = Notifications.addNotificationReceivedListener(_n => {})
-
-    // User tapped a notification — could navigate here if needed
-    responseSub.current = Notifications.addNotificationResponseReceivedListener(_r => {})
+    foregroundSub.current = Notifications.addNotificationReceivedListener(() => {})
+    responseSub.current   = Notifications.addNotificationResponseReceivedListener(() => {})
 
     return () => {
       foregroundSub.current?.remove()
