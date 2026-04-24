@@ -10,8 +10,8 @@ services:
     name: ems-backend
     runtime: docker
     plan: free
-    dockerfilePath: ./ems-backend/Dockerfile
-    dockerContext: ./ems-backend
+    dockerfilePath: ./EmployeeManagementSystem/ems-backend/Dockerfile
+    dockerContext: ./EmployeeManagementSystem/ems-backend
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -47,8 +47,8 @@ services:
     name: ems-chatbot
     runtime: docker
     plan: free
-    dockerfilePath: ./ems-chatbot/Dockerfile
-    dockerContext: ./ems-chatbot
+    dockerfilePath: ./EmployeeManagementSystem/ems-chatbot/Dockerfile
+    dockerContext: ./EmployeeManagementSystem/ems-chatbot
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -80,8 +80,8 @@ services:
     name: ems-frontend
     runtime: docker
     plan: free
-    dockerfilePath: ./ems-frontend/Dockerfile
-    dockerContext: ./ems-frontend
+    dockerfilePath: ./EmployeeManagementSystem/ems-frontend/Dockerfile
+    dockerContext: ./EmployeeManagementSystem/ems-frontend
     envVars:
       - key: VITE_API_BASE_URL
         value: https://ems-backend.onrender.com
