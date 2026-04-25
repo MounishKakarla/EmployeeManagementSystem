@@ -15,7 +15,7 @@ export const REFRESH_KEY = 'ems_refresh_token'
 const client = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30000,
+  timeout: 90000,
 })
 
 // ── Request interceptor: attach Bearer token ──────────────────────────────────
