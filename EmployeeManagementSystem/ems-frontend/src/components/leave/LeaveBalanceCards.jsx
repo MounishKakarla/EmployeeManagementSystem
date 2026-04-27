@@ -11,20 +11,12 @@ const BALANCE_ITEMS = [
     policy: '15 days/year · 1.25 days/month · Unused balance carries forward (max 30 days)',
   },
   {
-    key: 'sick', label: 'Sick Leave',
+    key: 'sickCasual', label: 'Sick / Casual Leave',
     icon: Heart, color: 'var(--danger)', bg: 'var(--danger-light)',
-    totalKey: 'sickTotal', usedKey: 'sickUsed', remKey: 'sickRemaining',
+    totalKey: 'sickCasualTotal', usedKey: 'sickCasualUsed', remKey: 'sickCasualRemaining',
     cfKey: null, accKey: null,
     carryForward: false,
-    policy: '6 days/year · Pro-rated from joining month · Resets Jan 1 (no carry-forward)',
-  },
-  {
-    key: 'casual', label: 'Casual Leave',
-    icon: Coffee, color: 'var(--info)', bg: 'var(--info-light)',
-    totalKey: 'casualTotal', usedKey: 'casualUsed', remKey: 'casualRemaining',
-    cfKey: null, accKey: null,
-    carryForward: false,
-    policy: '4 days/year · Pro-rated from joining month · Resets Jan 1 (no carry-forward)',
+    policy: '10 days/year · Pro-rated from joining month · Resets Jan 1 (no carry-forward)',
   },
   {
     key: 'maternity', label: 'Maternity Leave',
@@ -90,13 +82,7 @@ export default function LeaveBalanceCards({ balance }) {
           if (key === 'paternity' && total == null) return null
 
           const used      = getField(balance, usedKey)  ?? 0
-          const remAlias  = remKey === 'annualRemaining'
-            ? 'remainingAnnual'
-            : remKey === 'sickRemaining'
-              ? 'remainingSick'
-              : remKey === 'casualRemaining'
-                ? 'remainingCasual'
-                : null
+          const remAlias  = remKey === 'annualRemaining' ? 'remainingAnnual' : null
           const remaining = remKey    ? getField(balance, remKey, remAlias) : null
           const cf        = cfKey     ? getField(balance, cfKey)     : null
           const accrued   = accKey    ? getField(balance, accKey)    : null

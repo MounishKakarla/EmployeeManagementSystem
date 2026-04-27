@@ -13,13 +13,12 @@ import toast from 'react-hot-toast'
 import { AlertCircle } from 'lucide-react'
 
 const LEAVE_TYPES = [
-  { value: 'ANNUAL',       label: 'Annual Leave'       },
-  { value: 'SICK',         label: 'Sick Leave'         },
-  { value: 'CASUAL',       label: 'Casual Leave'       },
-  { value: 'UNPAID',       label: 'Unpaid Leave'       },
-  { value: 'MATERNITY',    label: 'Maternity Leave'    },
-  { value: 'PATERNITY',    label: 'Paternity Leave'    },
-  { value: 'COMPENSATORY', label: 'Compensatory Leave' },
+  { value: 'ANNUAL',       label: 'Annual / Earned Leave'   },
+  { value: 'SICK_CASUAL',  label: 'Sick / Casual Leave'     },
+  { value: 'UNPAID',       label: 'Unpaid Leave'            },
+  { value: 'MATERNITY',    label: 'Maternity Leave'         },
+  { value: 'PATERNITY',    label: 'Paternity Leave'         },
+  { value: 'COMPENSATORY', label: 'Compensatory Leave'      },
 ]
 
 function countWorkingDays(start, end) {

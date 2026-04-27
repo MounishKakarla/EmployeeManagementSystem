@@ -23,10 +23,15 @@ public class LeaveBalanceDTO {
     private Integer sickUsed;
     private Integer sickRemaining;
 
-    // Casual Leave
+    // Casual Leave (legacy — kept for historical data display)
     private Integer casualTotal;
     private Integer casualUsed;
     private Integer casualRemaining;
+
+    // Sick / Casual (combined — 10 days)
+    private Integer sickCasualTotal;
+    private Integer sickCasualUsed;
+    private Integer sickCasualRemaining;
 
     // Maternity Leave (182 calendar days per Maternity Benefit Act, 1961)
     private Integer maternityTotal;

@@ -1,5 +1,5 @@
 // app/(app)/timesheets.tsx — Timesheet Screen with Team Review
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl, Alert, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl, Modal, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -39,6 +39,8 @@ const TABS = [
   { key: 'team', label: 'Team Review',   icon: 'people-outline' as const, adminOnly: true },
 ]
 
+type ConfirmTS = { id: number; action: string; name: string; project: string; week: string } | null
+
 export default function TimesheetScreen() {
   const { user, isAdmin, isManager } = useAuth()
   const Colors = useThemeColors()
@@ -53,6 +55,7 @@ export default function TimesheetScreen() {
   const [editingId, setEditingId]     = useState<number | null>(null)
   const [teamFilter, setTeamFilter]   = useState('')
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
+  const [tsConfirm, setTsConfirm]       = useState<ConfirmTS>(null)
 
   const { data, refetch, isRefetching } = useQuery({
     queryKey: ['timesheet-week', selectedDate],
@@ -74,17 +77,30 @@ export default function TimesheetScreen() {
   const monday = dayjs(selectedDate).startOf('isoWeek')
   const currentWeekStart = monday.format('YYYY-MM-DD')
 
+  const handleSave = () => {
+    if (!projectName.trim()) {
+      Toast.show({ type: 'error', text1: 'Project name is required' }); return
+    }
+    if (!taskDesc.trim()) {
+      Toast.show({ type: 'error', text1: 'Task description is required' }); return
+    }
+    if (!hours || parseFloat(hours) <= 0) {
+      Toast.show({ type: 'error', text1: 'Hours worked must be greater than 0' }); return
+    }
+    saveMutation.mutate()
+  }
+
   const saveMutation = useMutation({
     mutationFn: () => timesheetAPI.saveEntry({
-      id:              editingId,
+      id:              editingId ?? undefined,
       weekStartDate:   currentWeekStart,
-      project:         projectName,
-      taskDescription: taskDesc,
+      project:         projectName.trim(),
+      taskDescription: taskDesc.trim(),
       [selectedDay]:   parseFloat(hours) || 0,
     }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Entry saved!' })
-      setHours(''); setTaskDesc(''); setEditingId(null); refetch()
+      setHours(''); setTaskDesc(''); setProjectName(''); setEditingId(null); refetch()
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to save entry' }),
   })
@@ -103,10 +119,26 @@ export default function TimesheetScreen() {
     mutationFn: ({ id, action }: { id: number; action: string }) => timesheetAPI.review(id, action),
     onSuccess: (_, { action }) => {
       Toast.show({ type: 'success', text1: `Timesheet ${action === 'APPROVED' ? 'approved' : 'rejected'}!` })
+      setTsConfirm(null)
       qc.invalidateQueries({ queryKey: ['team-timesheets'] })
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Review failed' }),
   })
+
+  const handleTsReview = (t: any, action: string) => {
+    setTsConfirm({
+      id:      t.id,
+      action,
+      name:    t.employeeName || t.empId,
+      project: t.project || t.projectName || '—',
+      week:    dayjs(t.weekStartDate).format('DD MMM YYYY'),
+    })
+  }
+
+  const doConfirmTsReview = () => {
+    if (!tsConfirm) return
+    reviewMutation.mutate({ id: tsConfirm.id, action: tsConfirm.action })
+  }
 
   const handleEdit = (e: any) => {
     setEditingId(e.id)
@@ -217,7 +249,7 @@ export default function TimesheetScreen() {
                 <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Task Description</Text>
                 <TextInput style={[styles.input, { height: 68, textAlignVertical: 'top', backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="What did you work on?" placeholderTextColor={Colors.textMuted} value={taskDesc} onChangeText={setTaskDesc} multiline />
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: Colors.accent }, saveMutation.isPending && { opacity: 0.6 }]} onPress={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                  <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: Colors.accent }, saveMutation.isPending && { opacity: 0.6 }]} onPress={handleSave} disabled={saveMutation.isPending}>
                     <Text style={styles.btnText}>{saveMutation.isPending ? 'Saving…' : (editingId ? 'Update Entry' : 'Save Entry')}</Text>
                   </TouchableOpacity>
                   {editingId && (
@@ -341,11 +373,11 @@ export default function TimesheetScreen() {
                         </View>
                       ) : (
                         <View style={styles.reviewActions}>
-                          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.success }]} onPress={() => Alert.alert('Approve?', 'Are you sure?', [{text:'Cancel'}, {text:'Approve', onPress:()=>reviewMutation.mutate({id:t.id, action:'APPROVED'})}])} disabled={reviewMutation.isPending}>
+                          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.success }]} onPress={() => handleTsReview(t, 'APPROVED')} disabled={reviewMutation.isPending}>
                             <Ionicons name="checkmark" size={16} color="#fff" />
                             <Text style={styles.actionBtnText}>Approve</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.danger }]} onPress={() => Alert.alert('Reject?', 'Are you sure?', [{text:'Cancel'}, {text:'Reject', onPress:()=>reviewMutation.mutate({id:t.id, action:'REJECTED'})}])} disabled={reviewMutation.isPending}>
+                          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: Colors.danger }]} onPress={() => handleTsReview(t, 'REJECTED')} disabled={reviewMutation.isPending}>
                             <Ionicons name="close" size={16} color="#fff" />
                             <Text style={styles.actionBtnText}>Reject</Text>
                           </TouchableOpacity>
@@ -359,6 +391,44 @@ export default function TimesheetScreen() {
           </>
         )}
       </ScrollView>
+      {/* ── Timesheet Review Confirmation Modal ───────────────────────────── */}
+      <Modal transparent animationType="fade" visible={!!tsConfirm} onRequestClose={() => setTsConfirm(null)}>
+        <View style={styles.overlayBg}>
+          <View style={[styles.confirmCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+            <View style={[styles.confirmIcon, { backgroundColor: tsConfirm?.action === 'APPROVED' ? Colors.successLight : Colors.dangerLight }]}>
+              <Ionicons name={tsConfirm?.action === 'APPROVED' ? 'checkmark-circle-outline' : 'close-circle-outline'} size={32} color={tsConfirm?.action === 'APPROVED' ? Colors.success : Colors.danger} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: Colors.textPrimary }]}>
+              {tsConfirm?.action === 'APPROVED' ? 'Approve Timesheet?' : 'Reject Timesheet?'}
+            </Text>
+            <View style={[styles.confirmInfo, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="person-outline" size={14} color={Colors.textMuted} />
+                <Text style={[styles.confirmInfoText, { color: Colors.textPrimary }]}>{tsConfirm?.name}</Text>
+              </View>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="briefcase-outline" size={14} color={Colors.textMuted} />
+                <Text style={[styles.confirmInfoText, { color: Colors.textSecondary }]}>{tsConfirm?.project}</Text>
+              </View>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
+                <Text style={[styles.confirmInfoText, { color: Colors.textSecondary }]}>Week of {tsConfirm?.week}</Text>
+              </View>
+            </View>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, borderWidth: 1 }]} onPress={() => setTsConfirm(null)} activeOpacity={0.8}>
+                <Text style={[styles.confirmBtnText, { color: Colors.textPrimary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: tsConfirm?.action === 'APPROVED' ? Colors.success : Colors.danger, opacity: reviewMutation.isPending ? 0.6 : 1 }]} onPress={doConfirmTsReview} disabled={reviewMutation.isPending} activeOpacity={0.8}>
+                {reviewMutation.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <><Ionicons name={tsConfirm?.action === 'APPROVED' ? 'checkmark' : 'close'} size={16} color="#fff" /><Text style={[styles.confirmBtnText, { color: '#fff' }]}>{tsConfirm?.action === 'APPROVED' ? 'Approve' : 'Reject'}</Text></>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -421,4 +491,16 @@ const styles = StyleSheet.create({
   weekNavBtn:       { padding: 8 },
   weekDisplay:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   weekDisplayText:  { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+
+  // ── Confirm modal ─────────────────────────────────────────────────────────
+  overlayBg:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  confirmCard:     { width: '100%', borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm },
+  confirmIcon:     { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.xs },
+  confirmTitle:    { fontSize: FontSize.lg, fontWeight: FontWeight.bold, textAlign: 'center' },
+  confirmInfo:     { width: '100%', borderRadius: Radius.sm, padding: Spacing.md, borderWidth: 1, gap: 8 },
+  confirmInfoRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  confirmInfoText: { fontSize: FontSize.sm },
+  confirmActions:  { flexDirection: 'row', gap: Spacing.sm, width: '100%', marginTop: Spacing.xs },
+  confirmBtn:      { flex: 1, borderRadius: Radius.sm, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  confirmBtnText:  { fontWeight: FontWeight.bold, fontSize: FontSize.md },
 })

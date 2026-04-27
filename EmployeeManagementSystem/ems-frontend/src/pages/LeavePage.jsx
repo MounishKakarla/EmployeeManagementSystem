@@ -25,6 +25,7 @@ const LEAVE_TYPE_COLORS = {
   ANNUAL:        'badge-info',
   SICK:          'badge-danger',
   CASUAL:        'badge-accent',
+  SICK_CASUAL:   'badge-danger',
   UNPAID:        'badge-neutral',
   MATERNITY:     'badge-success',
   PATERNITY:     'badge-success',

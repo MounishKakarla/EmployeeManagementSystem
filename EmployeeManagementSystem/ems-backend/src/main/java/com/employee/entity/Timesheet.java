@@ -10,10 +10,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(
-    name = "timesheets",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"emp_id", "week_start_date", "project"})
-)
+@Table(name = "timesheets")
 @Data
 @Builder
 @NoArgsConstructor

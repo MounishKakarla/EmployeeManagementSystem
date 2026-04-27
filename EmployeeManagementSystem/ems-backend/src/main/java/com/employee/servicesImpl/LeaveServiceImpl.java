@@ -79,6 +79,7 @@ public class LeaveServiceImpl implements LeaveService {
                 case ANNUAL -> balance.getAnnualRemaining();
                 case SICK -> balance.getSickRemaining();
                 case CASUAL -> balance.getCasualRemaining();
+                case SICK_CASUAL -> balance.getSickCasualRemaining();
                 case MATERNITY -> balance.getMaternityRemaining();
                 case PATERNITY -> balance.getPaternityRemaining();
                 case COMPENSATORY -> balance.getCompOffRemaining();
@@ -302,6 +303,11 @@ public class LeaveServiceImpl implements LeaveService {
                 .casualTotal(balance.getCasualTotal())
                 .casualUsed(balance.getCasualUsed())
                 .casualRemaining(balance.getRemainingCasual())
+                // Sick / Casual combined
+                .sickCasualTotal(balance.getSickCasualTotal() != null && balance.getSickCasualTotal() > 0
+                        ? balance.getSickCasualTotal() : LeaveCalculationService.SICK_CASUAL_FULL_YEAR)
+                .sickCasualUsed(balance.getSickCasualUsed() != null ? balance.getSickCasualUsed() : 0)
+                .sickCasualRemaining(balance.getRemainingSickCasual())
                 // Maternity — only for non-male employees
                 .maternityTotal(isMale ? null : balance.getMaternityTotal())
                 .maternityUsed(isMale ? null : balance.getMaternityUsed())
@@ -413,6 +419,7 @@ public class LeaveServiceImpl implements LeaveService {
             case ANNUAL -> bal.setAnnualUsed(bal.getAnnualUsed() + days);
             case SICK -> bal.setSickUsed(bal.getSickUsed() + days);
             case CASUAL -> bal.setCasualUsed(bal.getCasualUsed() + days);
+            case SICK_CASUAL -> bal.setSickCasualUsed(nullSafe(bal.getSickCasualUsed()) + days);
             case UNPAID -> bal.setUnpaidUsed(bal.getUnpaidUsed() + days);
             case MATERNITY -> bal.setMaternityUsed(nullSafe(bal.getMaternityUsed()) + days);
             case PATERNITY -> bal.setPaternityUsed(nullSafe(bal.getPaternityUsed()) + days);
@@ -433,6 +440,7 @@ public class LeaveServiceImpl implements LeaveService {
             case ANNUAL -> bal.setAnnualUsed(Math.max(0, bal.getAnnualUsed() - days));
             case SICK -> bal.setSickUsed(Math.max(0, bal.getSickUsed() - days));
             case CASUAL -> bal.setCasualUsed(Math.max(0, bal.getCasualUsed() - days));
+            case SICK_CASUAL -> bal.setSickCasualUsed(Math.max(0, nullSafe(bal.getSickCasualUsed()) - days));
             case UNPAID -> bal.setUnpaidUsed(Math.max(0, bal.getUnpaidUsed() - days));
             case MATERNITY -> bal.setMaternityUsed(Math.max(0, nullSafe(bal.getMaternityUsed()) - days));
             case PATERNITY -> bal.setPaternityUsed(Math.max(0, nullSafe(bal.getPaternityUsed()) - days));

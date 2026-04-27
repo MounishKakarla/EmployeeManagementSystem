@@ -115,15 +115,14 @@ export default function TimesheetPage() {
           <p className="page-subtitle">Log your weekly hours and track approvals</p>
         </div>
         {/* Status pill — shows current week submission state */}
-        {weekData?.data && (
-          <div className={`timesheet-status-pill ${
-            weekData.data.status === 'APPROVED'  ? 'ts-approved'  :
-            weekData.data.status === 'SUBMITTED' ? 'ts-submitted' :
-            weekData.data.status === 'REJECTED'  ? 'ts-rejected'  : 'ts-draft'
-          }`}>
-            {weekData.data.status || 'DRAFT'}
-          </div>
-        )}
+        {currentWeekEntries.length > 0 && (() => {
+          const s = currentWeekEntries[0].status || 'DRAFT'
+          return (
+            <div className={`timesheet-status-pill ${
+              s === 'APPROVED' ? 'ts-approved' : s === 'SUBMITTED' ? 'ts-submitted' : s === 'REJECTED' ? 'ts-rejected' : 'ts-draft'
+            }`}>{s}</div>
+          )
+        })()}
       </div>
 
       {/* ── Weekly banner ─────────────────────────────────────────────────────── */}

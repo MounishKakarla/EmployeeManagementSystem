@@ -115,7 +115,7 @@ export default function TimesheetEntryForm({
   const addRow = () => setRows(prev => [...prev, emptyRow()])
   const removeRow = (key) => setRows(prev => prev.filter(r => r._key !== key))
 
-  const validRows = rows.filter(r => r.project.trim() && r.hours !== '')
+  const validRows = rows.filter(r => r.project.trim() && r.taskDescription.trim() && r.hours !== '' && parseFloat(r.hours) > 0)
 
   // Summary: total hours per day across all rows
   const dayTotals = DAYS.map(day =>
@@ -147,11 +147,14 @@ export default function TimesheetEntryForm({
                 <td style={{ padding: '6px 8px' }}>
                   <input
                     className="form-input"
-                    placeholder="Project name…"
+                    placeholder="Project name *"
                     value={row.project}
                     disabled={disabled}
                     onChange={e => updateRow(row._key, 'project', e.target.value)}
-                    style={{ fontSize: 13, padding: '6px 10px', width: '100%' }}
+                    style={{
+                      fontSize: 13, padding: '6px 10px', width: '100%',
+                      borderColor: !disabled && !row.project.trim() ? 'var(--danger)' : undefined,
+                    }}
                   />
                 </td>
 
@@ -159,11 +162,14 @@ export default function TimesheetEntryForm({
                 <td style={{ padding: '6px 8px' }}>
                   <input
                     className="form-input"
-                    placeholder="Task description…"
+                    placeholder="Task description *"
                     value={row.taskDescription}
                     disabled={disabled}
                     onChange={e => updateRow(row._key, 'taskDescription', e.target.value)}
-                    style={{ fontSize: 13, padding: '6px 10px', width: '100%' }}
+                    style={{
+                      fontSize: 13, padding: '6px 10px', width: '100%',
+                      borderColor: !disabled && !row.taskDescription.trim() ? 'var(--danger)' : undefined,
+                    }}
                   />
                 </td>
 
@@ -266,8 +272,19 @@ export default function TimesheetEntryForm({
           </button>
           <button
             className="btn btn-primary btn-sm"
-            onClick={() => saveMutation.mutate(validRows)}
-            disabled={saveMutation.isPending || validRows.length === 0}
+            onClick={() => {
+              const incomplete = rows.filter(r => !disabled && (r.project.trim() || r.taskDescription.trim() || r.hours !== '') && !(r.project.trim() && r.taskDescription.trim() && r.hours !== '' && parseFloat(r.hours) > 0))
+              if (incomplete.length > 0) {
+                toast.error('All rows require project, task description, and hours > 0')
+                return
+              }
+              if (validRows.length === 0) {
+                toast.error('Add at least one complete entry (project, task, hours)')
+                return
+              }
+              saveMutation.mutate(validRows)
+            }}
+            disabled={saveMutation.isPending}
           >
             {saveMutation.isPending
               ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Saving…</>

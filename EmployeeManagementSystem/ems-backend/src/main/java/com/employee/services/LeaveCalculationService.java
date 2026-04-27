@@ -37,8 +37,9 @@ public class LeaveCalculationService {
 	public static final double ANNUAL_PER_MONTH = 1.25; // 15 / 12
 	public static final int ANNUAL_CARRY_CAP = 30; // max days that roll over (2 years)
 
-	public static final int SICK_FULL_YEAR   = 6;
-	public static final int CASUAL_FULL_YEAR = 4;
+	public static final int SICK_FULL_YEAR        = 6;
+	public static final int CASUAL_FULL_YEAR      = 4;
+	public static final int SICK_CASUAL_FULL_YEAR = 10;
 
 	// Maternity Benefit Act, 1961 → 182 calendar days (26 weeks)
 	public static final int MATERNITY_DAYS   = 182;
@@ -88,15 +89,17 @@ public class LeaveCalculationService {
 		int sickTotal = isJoiningYear ? proRate(SICK_FULL_YEAR, monthsWorkedThisYear) : SICK_FULL_YEAR;
 
 // ── Casual leave ───────────────────────────────────────────────────────
-// Joining year : pro-rated by months remaining (ceiling)
-// All other years : full 4 days granted on Jan 1
 		int casualTotal = isJoiningYear ? proRate(CASUAL_FULL_YEAR, monthsWorkedThisYear) : CASUAL_FULL_YEAR;
+
+// ── Sick / Casual combined ────────────────────────────────────────────
+		int sickCasualTotal = isJoiningYear ? proRate(SICK_CASUAL_FULL_YEAR, monthsWorkedThisYear) : SICK_CASUAL_FULL_YEAR;
 
 		if (existing != null) {
 			existing.setAnnualTotal(annualTotal);
 			existing.setAnnualCarriedForward(carryForward);
 			existing.setSickTotal(sickTotal);
 			existing.setCasualTotal(casualTotal);
+			if (nullSafe(existing.getSickCasualTotal()) == 0) existing.setSickCasualTotal(sickCasualTotal);
 			// Maternity and Paternity are gender-gated:
 			//   FEMALE (or OTHER/unknown) → maternity only
 			//   MALE                      → paternity only
@@ -122,6 +125,7 @@ public class LeaveCalculationService {
 				.annualCarriedForward(carryForward)
 				.sickTotal(sickTotal).sickUsed(0)
 				.casualTotal(casualTotal).casualUsed(0)
+				.sickCasualTotal(sickCasualTotal).sickCasualUsed(0)
 				.maternityTotal(isMale ? 0 : MATERNITY_DAYS).maternityUsed(0)
 				.paternityTotal(isMale ? PATERNITY_DAYS : 0).paternityUsed(0)
 				.compOffEarned(0).compOffUsed(0)
@@ -155,6 +159,8 @@ public class LeaveCalculationService {
 				.sickUsed(0)
 				.casualTotal(CASUAL_FULL_YEAR)
 				.casualUsed(0)
+				.sickCasualTotal(SICK_CASUAL_FULL_YEAR)
+				.sickCasualUsed(0)
 				.maternityTotal(isMale ? 0 : MATERNITY_DAYS)
 				.maternityUsed(0)
 				.paternityTotal(isMale ? PATERNITY_DAYS : 0)
@@ -200,6 +206,7 @@ public class LeaveCalculationService {
 		if (existing != null)
 			return existing;
 		return LeaveBalance.builder().employee(employee).year(year).annualTotal(0).annualUsed(0).annualCarriedForward(0)
-				.sickTotal(0).sickUsed(0).casualTotal(0).casualUsed(0).unpaidUsed(0).build();
+				.sickTotal(0).sickUsed(0).casualTotal(0).casualUsed(0)
+				.sickCasualTotal(0).sickCasualUsed(0).unpaidUsed(0).build();
 	}
 }

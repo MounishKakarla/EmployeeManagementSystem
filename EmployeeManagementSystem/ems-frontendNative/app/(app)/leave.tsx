@@ -1,6 +1,7 @@
 // app/(app)/leave.tsx — Leave Screen with Manager Review
 import { useState, useMemo } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl, Alert, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl, ActivityIndicator } from 'react-native'
+import CalendarPicker from '../../src/components/CalendarPicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -13,13 +14,8 @@ import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import dayjs from 'dayjs'
 
 const LEAVE_TYPES = [
-  { value: 'ANNUAL',       label: 'Annual Leave' },
-  { value: 'SICK',         label: 'Sick Leave' },
-  { value: 'CASUAL',       label: 'Casual Leave' },
-  { value: 'UNPAID',       label: 'Unpaid Leave' },
-  { value: 'MATERNITY',    label: 'Maternity Leave' },
-  { value: 'PATERNITY',    label: 'Paternity Leave' },
-  { value: 'COMPENSATORY', label: 'Compensatory Leave' },
+  { value: 'ANNUAL',      label: 'Annual / Earned Leave' },
+  { value: 'SICK_CASUAL', label: 'Sick / Casual Leave'   },
 ]
 
 // ✅ FIX 2: BalanceCard now accepts Colors as a prop and uses flex: 1 instead of fixed width
@@ -82,6 +78,8 @@ const TABS = [
   { key: 'all',     label: 'All Requests',     icon: 'list-outline' as const,      adminOnly: true },
 ]
 
+type ConfirmLeave = { id: number; action: string; name: string; leaveType: string; dates: string; days: number } | null
+
 export default function LeaveScreen() {
   const { user, isAdmin, isManager } = useAuth()
   const canManage = isAdmin() || isManager()
@@ -93,11 +91,15 @@ export default function LeaveScreen() {
   const [activeTab, setActiveTab] = useState('my')
   const [modalOpen, setModalOpen] = useState(false)
   const [leaveType, setLeaveType] = useState('ANNUAL')
-  const [startDate, setStartDate] = useState('')
-  const [endDate,   setEndDate]   = useState('')
-  const [reason,    setReason]    = useState('')
-  const [reviewNotes, setReviewNotes] = useState('')
+  const [startDate, setStartDate]           = useState('')
+  const [endDate,   setEndDate]             = useState('')
+  const [reason,    setReason]              = useState('')
+  const [showStartPicker, setShowStartPicker] = useState(false)
+  const [showEndPicker,   setShowEndPicker]   = useState(false)
   const [filterStatus, setFilterStatus] = useState('')
+  const [leaveConfirm, setLeaveConfirm] = useState<ConfirmLeave>(null)
+  const [infoMsg, setInfoMsg]           = useState<string | null>(null)
+  const [modalNotes, setModalNotes]     = useState('')
 
   // Working-day preview — fetch holidays for the year the leave starts in
   const leaveYear = startDate ? new Date(startDate).getFullYear() : new Date().getFullYear()
@@ -145,6 +147,7 @@ export default function LeaveScreen() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Leave request submitted!' })
       setModalOpen(false); setLeaveType('ANNUAL'); setStartDate(''); setEndDate(''); setReason('')
+      setShowStartPicker(false); setShowEndPicker(false)
       refetch(); refetchLeaves()
     },
     onError: (err: any) => {
@@ -154,11 +157,11 @@ export default function LeaveScreen() {
 
   // ── Review leave (approve/reject) ──────────────────────────────────────────
   const reviewMutation = useMutation({
-    mutationFn: ({ id, action }: { id: number; action: string }) =>
-      leaveAPI.review(id, action, reviewNotes || undefined),
+    mutationFn: ({ id, action, notes }: { id: number; action: string; notes?: string }) =>
+      leaveAPI.review(id, action, notes),
     onSuccess: (_, { action }) => {
       Toast.show({ type: 'success', text1: `Leave ${action === 'APPROVED' ? 'approved' : 'rejected'}!` })
-      setReviewNotes('')
+      setLeaveConfirm(null); setModalNotes('')
       qc.invalidateQueries({ queryKey: ['pending-leaves'] })
       qc.invalidateQueries({ queryKey: ['all-leaves'] })
     },
@@ -175,28 +178,30 @@ export default function LeaveScreen() {
   const statusColor = (s: string) =>
     s === 'APPROVED' ? Colors.success : s === 'REJECTED' ? Colors.danger : Colors.warning
 
-  const availableLeaveTypes = LEAVE_TYPES.filter(t => {
-    if (t.value === 'MATERNITY' && b?.maternityTotal == null) return false
-    if (t.value === 'PATERNITY' && b?.paternityTotal == null) return false
-    return true
-  })
+  const availableLeaveTypes = LEAVE_TYPES
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManage)
 
   const handleReview = (id: number, action: string) => {
-    const isSelf = pendingLeaves.find((l: any) => l.id === id)?.empId === user?.empId
-    if (isSelf) {
-      Alert.alert('Cannot Review', 'You cannot approve/reject your own leave request.')
+    const req = pendingLeaves.find((l: any) => l.id === id)
+    if (!req) return
+    if (req.empId === user?.empId) {
+      setInfoMsg('You cannot approve or reject your own leave request.')
       return
     }
-    Alert.alert(
-      `${action === 'APPROVED' ? 'Approve' : 'Reject'} Leave?`,
-      'Are you sure you want to proceed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: action === 'APPROVED' ? 'Approve' : 'Reject', onPress: () => reviewMutation.mutate({ id, action }) },
-      ]
-    )
+    setModalNotes('')
+    setLeaveConfirm({
+      id, action,
+      name:      req.employeeName || req.empId,
+      leaveType: req.leaveType?.replace(/_/g, ' ') || '',
+      dates:     `${dayjs(req.startDate).format('DD MMM')} → ${dayjs(req.endDate).format('DD MMM YYYY')}`,
+      days:      req.daysRequested,
+    })
+  }
+
+  const doConfirmReview = () => {
+    if (!leaveConfirm) return
+    reviewMutation.mutate({ id: leaveConfirm.id, action: leaveConfirm.action, notes: modalNotes || undefined })
   }
 
   const doRefresh = () => {
@@ -242,25 +247,17 @@ export default function LeaveScreen() {
             {/* Balance Cards */}
             <Text style={[styles.sectionTitle, { color: Colors.textMuted }]}>Leave Balances</Text>
 
-            {/* 3-row 2-column balance grid */}
+            {/* 2-row 2-column balance grid */}
             <View style={{ paddingHorizontal: Spacing.md, gap: 10 }}>
-              {/* Row 1: Annual | Sick */}
+              {/* Row 1: Annual | Sick/Casual */}
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <BalanceCard label="Annual" remaining={b?.annualRemaining} total={b?.annualTotal} color={Colors.accent}  icon="umbrella-outline" colors={Colors} />
-                <BalanceCard label="Sick"   remaining={b?.sickRemaining}   total={b?.sickTotal}   color={Colors.danger}  icon="medkit-outline"   colors={Colors} />
+                <BalanceCard label="Annual / Earned" remaining={b?.annualRemaining}     total={b?.annualTotal}      color={Colors.accent}  icon="umbrella-outline" colors={Colors} />
+                <BalanceCard label="Sick / Casual"   remaining={b?.sickCasualRemaining} total={b?.sickCasualTotal}  color={Colors.danger}  icon="medkit-outline"   colors={Colors} />
               </View>
-              {/* Row 2: Casual | Comp Off */}
+              {/* Row 2: Comp Off | Unpaid */}
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <BalanceCard label="Casual"   remaining={b?.casualRemaining}  total={b?.casualTotal}   color={Colors.info}    icon="cafe-outline"       colors={Colors} />
-                <BalanceCard label="Comp Off" remaining={b?.compOffRemaining} total={b?.compOffEarned} color={Colors.warning} icon="trending-up-outline" colors={Colors} />
-              </View>
-              {/* Row 3: Paternity OR Maternity (based on gender) | Unpaid */}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {b?.paternityTotal != null
-                  ? <BalanceCard label="Paternity" remaining={b?.paternityRemaining} total={b?.paternityTotal} color={Colors.success} icon="people-outline" colors={Colors} />
-                  : <BalanceCard label="Maternity" remaining={b?.maternityRemaining} total={b?.maternityTotal} color={Colors.success} icon="heart-outline"   colors={Colors} />
-                }
-                <BalanceCard label="Unpaid" used={b?.unpaidUsed} color={Colors.textMuted} icon="ban-outline" colors={Colors} />
+                <BalanceCard label="Comp Off" remaining={b?.compOffRemaining} total={b?.compOffEarned} color={Colors.warning}   icon="trending-up-outline" colors={Colors} />
+                <BalanceCard label="Unpaid"   used={b?.unpaidUsed}                                     color={Colors.textMuted} icon="ban-outline"         colors={Colors} />
               </View>
             </View>
 
@@ -447,22 +444,45 @@ export default function LeaveScreen() {
               ))}
             </ScrollView>
 
-            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Start Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]}
-              placeholder="e.g. 2026-05-01"
-              placeholderTextColor={Colors.textMuted}
-              value={startDate}
-              onChangeText={setStartDate}
-            />
+            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Start Date</Text>
+            <TouchableOpacity
+              style={[styles.dateBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+              onPress={() => setShowStartPicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={16} color={Colors.accent} />
+              <Text style={[styles.dateBtnText, { color: startDate ? Colors.textPrimary : Colors.textMuted }]}>
+                {startDate ? dayjs(startDate).format('DD MMM YYYY') : 'Select start date'}
+              </Text>
+            </TouchableOpacity>
 
-            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>End Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]}
-              placeholder="e.g. 2026-05-03"
-              placeholderTextColor={Colors.textMuted}
-              value={endDate}
-              onChangeText={setEndDate}
+            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>End Date</Text>
+            <TouchableOpacity
+              style={[styles.dateBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+              onPress={() => setShowEndPicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={16} color={Colors.accent} />
+              <Text style={[styles.dateBtnText, { color: endDate ? Colors.textPrimary : Colors.textMuted }]}>
+                {endDate ? dayjs(endDate).format('DD MMM YYYY') : 'Select end date'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Calendar pickers */}
+            <CalendarPicker
+              visible={showStartPicker}
+              onClose={() => setShowStartPicker(false)}
+              onSelect={(d) => { setStartDate(d); if (endDate && endDate < d) setEndDate('') }}
+              selectedDate={startDate}
+              minDate={dayjs().format('YYYY-MM-DD')}
+              title="Select Start Date"
+            />
+            <CalendarPicker
+              visible={showEndPicker}
+              onClose={() => setShowEndPicker(false)}
+              onSelect={(d) => setEndDate(d)}
+              selectedDate={endDate}
+              minDate={startDate || dayjs().format('YYYY-MM-DD')}
+              rangeStart={startDate}
+              title="Select End Date"
             />
 
             <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Reason (optional)</Text>
@@ -505,6 +525,70 @@ export default function LeaveScreen() {
           </ScrollView>
         </View>
       </Modal>
+      {/* ── Review Confirmation Modal ──────────────────────────────────────── */}
+      <Modal transparent animationType="fade" visible={!!leaveConfirm} onRequestClose={() => setLeaveConfirm(null)}>
+        <View style={styles.overlayBg}>
+          <View style={[styles.confirmCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+            <View style={[styles.confirmIcon, { backgroundColor: leaveConfirm?.action === 'APPROVED' ? Colors.successLight : Colors.dangerLight }]}>
+              <Ionicons name={leaveConfirm?.action === 'APPROVED' ? 'checkmark-circle-outline' : 'close-circle-outline'} size={32} color={leaveConfirm?.action === 'APPROVED' ? Colors.success : Colors.danger} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: Colors.textPrimary }]}>
+              {leaveConfirm?.action === 'APPROVED' ? 'Approve Leave?' : 'Reject Leave?'}
+            </Text>
+            <View style={[styles.confirmInfo, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="person-outline" size={14} color={Colors.textMuted} />
+                <Text style={[styles.confirmInfoText, { color: Colors.textPrimary }]}>{leaveConfirm?.name}</Text>
+              </View>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="briefcase-outline" size={14} color={Colors.textMuted} />
+                <Text style={[styles.confirmInfoText, { color: Colors.textSecondary }]}>{leaveConfirm?.leaveType}</Text>
+              </View>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
+                <Text style={[styles.confirmInfoText, { color: Colors.textSecondary }]}>
+                  {leaveConfirm?.dates}<Text style={{ color: Colors.accent }}> · {leaveConfirm?.days}d</Text>
+                </Text>
+              </View>
+            </View>
+            <TextInput
+              style={[styles.confirmNotes, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]}
+              placeholder={leaveConfirm?.action === 'APPROVED' ? 'Optional note to employee…' : 'Reason for rejection (optional)…'}
+              placeholderTextColor={Colors.textMuted}
+              value={modalNotes}
+              onChangeText={setModalNotes}
+              multiline
+            />
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, borderWidth: 1 }]} onPress={() => setLeaveConfirm(null)} activeOpacity={0.8}>
+                <Text style={[styles.confirmBtnText, { color: Colors.textPrimary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: leaveConfirm?.action === 'APPROVED' ? Colors.success : Colors.danger, opacity: reviewMutation.isPending ? 0.6 : 1 }]} onPress={doConfirmReview} disabled={reviewMutation.isPending} activeOpacity={0.8}>
+                {reviewMutation.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <><Ionicons name={leaveConfirm?.action === 'APPROVED' ? 'checkmark' : 'close'} size={16} color="#fff" /><Text style={[styles.confirmBtnText, { color: '#fff' }]}>{leaveConfirm?.action === 'APPROVED' ? 'Approve' : 'Reject'}</Text></>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Cannot-review-self info Modal ─────────────────────────────────── */}
+      <Modal transparent animationType="fade" visible={!!infoMsg} onRequestClose={() => setInfoMsg(null)}>
+        <View style={styles.overlayBg}>
+          <View style={[styles.confirmCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+            <View style={[styles.confirmIcon, { backgroundColor: Colors.warningLight }]}>
+              <Ionicons name="alert-circle-outline" size={32} color={Colors.warning} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: Colors.textPrimary }]}>Not Allowed</Text>
+            <Text style={[styles.confirmSubtitle, { color: Colors.textMuted }]}>{infoMsg}</Text>
+            <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.accent, width: '100%' }]} onPress={() => setInfoMsg(null)} activeOpacity={0.8}>
+              <Text style={[styles.confirmBtnText, { color: '#fff' }]}>Got It</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -535,6 +619,8 @@ const styles = StyleSheet.create({
   modalTitle:      { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   fieldLabel:      { fontSize: FontSize.xs, fontWeight: FontWeight.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
   textInput:       { borderRadius: Radius.sm, borderWidth: 1, padding: 12, fontSize: FontSize.md },
+  dateBtn:         { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: Radius.sm, borderWidth: 1, padding: 12 },
+  dateBtnText:     { fontSize: FontSize.md, flex: 1 },
   typePill:        { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1 },
   typePillText:    { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   submitBtn:       { borderRadius: Radius.sm, padding: 14, alignItems: 'center', marginTop: Spacing.sm },
@@ -566,4 +652,18 @@ const styles = StyleSheet.create({
   // Filter pills
   filterPill:      { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.full, borderWidth: 1 },
   filterPillText:  { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+
+  // ── Confirm / info modals ─────────────────────────────────────────────────
+  overlayBg:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  confirmCard:     { width: '100%', borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm },
+  confirmIcon:     { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.xs },
+  confirmTitle:    { fontSize: FontSize.lg, fontWeight: FontWeight.bold, textAlign: 'center' },
+  confirmSubtitle: { fontSize: FontSize.sm, textAlign: 'center', lineHeight: 20 },
+  confirmInfo:     { width: '100%', borderRadius: Radius.sm, padding: Spacing.md, borderWidth: 1, gap: 8 },
+  confirmInfoRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  confirmInfoText: { fontSize: FontSize.sm },
+  confirmNotes:    { width: '100%', borderRadius: Radius.sm, borderWidth: 1, padding: 12, fontSize: FontSize.sm, minHeight: 60, textAlignVertical: 'top' },
+  confirmActions:  { flexDirection: 'row', gap: Spacing.sm, width: '100%', marginTop: Spacing.xs },
+  confirmBtn:      { flex: 1, borderRadius: Radius.sm, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 },
+  confirmBtnText:  { fontWeight: FontWeight.bold, fontSize: FontSize.md },
 })

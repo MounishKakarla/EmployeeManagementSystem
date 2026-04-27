@@ -63,6 +63,12 @@ public class LeaveBalance {
     @Builder.Default @Column(name = "comp_off_earned")         private Integer compOffEarned        = 0;
     @Builder.Default @Column(name = "comp_off_used")           private Integer compOffUsed          = 0;
 
+    // ── Sick / Casual (combined) ──────────────────────────────────────────────
+    // Merged entitlement : 10 days (replaces separate 6+4 policy)
+    // Carry-forward         : NO — resets to 10 every Jan 1
+    @Builder.Default @Column(name = "sick_casual_total")       private Integer sickCasualTotal      = 0;
+    @Builder.Default @Column(name = "sick_casual_used")        private Integer sickCasualUsed       = 0;
+
     // ── Unpaid ────────────────────────────────────────────────────────────────
     // Unlimited but tracked for payroll/HR reporting
     @Builder.Default @Column(name = "unpaid_used")             private Integer unpaidUsed           = 0;
@@ -74,12 +80,13 @@ public class LeaveBalance {
     public void onSave() { this.updatedAt = LocalDateTime.now(); }
 
     // ── Computed helpers ───────────────────────────────────────────────────────
-    public int getRemainingAnnual()    { return Math.max(0, nullSafe(annualTotal)    - nullSafe(annualUsed));    }
-    public int getRemainingSick()      { return Math.max(0, nullSafe(sickTotal)      - nullSafe(sickUsed));      }
-    public int getRemainingCasual()    { return Math.max(0, nullSafe(casualTotal)    - nullSafe(casualUsed));    }
-    public int getRemainingMaternity() { return Math.max(0, nullSafe(maternityTotal) - nullSafe(maternityUsed)); }
-    public int getRemainingPaternity() { return Math.max(0, nullSafe(paternityTotal) - nullSafe(paternityUsed)); }
-    public int getRemainingCompOff()   { return Math.max(0, nullSafe(compOffEarned)  - nullSafe(compOffUsed));   }
+    public int getRemainingAnnual()      { return Math.max(0, nullSafe(annualTotal)      - nullSafe(annualUsed));      }
+    public int getRemainingSick()        { return Math.max(0, nullSafe(sickTotal)        - nullSafe(sickUsed));        }
+    public int getRemainingCasual()      { return Math.max(0, nullSafe(casualTotal)      - nullSafe(casualUsed));      }
+    public int getRemainingSickCasual()  { return Math.max(0, nullSafe(sickCasualTotal)  - nullSafe(sickCasualUsed));  }
+    public int getRemainingMaternity()   { return Math.max(0, nullSafe(maternityTotal)   - nullSafe(maternityUsed));   }
+    public int getRemainingPaternity()   { return Math.max(0, nullSafe(paternityTotal)   - nullSafe(paternityUsed));   }
+    public int getRemainingCompOff()     { return Math.max(0, nullSafe(compOffEarned)    - nullSafe(compOffUsed));     }
 
     // Defensive null guard for rows that existed before the default was applied
     private int nullSafe(Integer value) { return value != null ? value : 0; }
