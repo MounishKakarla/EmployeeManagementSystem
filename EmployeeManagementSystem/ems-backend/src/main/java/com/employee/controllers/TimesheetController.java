@@ -106,6 +106,17 @@ public class TimesheetController {
     }
 
     /**
+     * DELETE /ems/timesheets/{id}
+     * Delete a DRAFT or SUBMITTED timesheet entry owned by the authenticated employee.
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteEntry(Authentication auth, @PathVariable Long id) {
+        timesheetService.deleteEntry(auth.getName(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * PUT /ems/timesheets/{id}/review?action=APPROVED
      * Approve or reject a submitted timesheet entry.
      */

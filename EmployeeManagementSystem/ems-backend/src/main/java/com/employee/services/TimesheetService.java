@@ -18,6 +18,8 @@ public interface TimesheetService {
     List<TimesheetDTO> getWeek(String empId, LocalDate weekStartDate);
     Page<TimesheetDTO> getMyTimesheets(String empId, Pageable pageable);
 
+    void deleteEntry(String empId, Long id);
+
     // ── Admin / Manager ────────────────────────────────────────────────────────
     TimesheetDTO reviewEntry(Long id, TimesheetStatus action,
                              String reviewedBy, String reviewNotes);

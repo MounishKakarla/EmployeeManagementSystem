@@ -65,7 +65,8 @@ export default function CalendarPicker({
   const selDay = selectedDate ? dayjs(selectedDate).startOf('day') : null
   const rangeStartDay = rangeStart ? dayjs(rangeStart).startOf('day') : null
 
-  const CELL_SIZE = Math.floor((SCREEN_W - 48 - 24 - 12) / 7) // modal padding + gap
+  // overlay paddingHorizontal 24*2=48, sheet padding 16*2=32, gaps between 7 cols = 6*2=12
+  const CELL_SIZE = Math.floor((SCREEN_W - 48 - 32 - 12) / 7)
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -152,8 +153,8 @@ export default function CalendarPicker({
             })}
           </View>
 
-          {/* Today shortcut */}
-          {(!minDate || !dayjs(minDate).isAfter(today, 'day')) && (
+          {/* Today shortcut — only shown when today is a working weekday */}
+          {today.day() !== 0 && today.day() !== 6 && (!minDate || !dayjs(minDate).isAfter(today, 'day')) && (
             <TouchableOpacity
               style={[styles.todayBtn, { borderColor: Colors.border }]}
               onPress={() => {

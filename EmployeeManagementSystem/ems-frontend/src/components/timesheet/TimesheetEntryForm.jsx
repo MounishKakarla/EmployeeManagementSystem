@@ -276,16 +276,15 @@ export default function TimesheetEntryForm({
           <button
             className="btn btn-primary btn-sm"
             onClick={() => {
-              const incomplete = rows.filter(r => !disabled && (r.project.trim() || r.taskDescription.trim() || r.hours !== '') && !(r.project.trim() && r.taskDescription.trim() && r.hours !== '' && parseFloat(r.hours) > 0))
-              if (incomplete.length > 0) {
-                toast.error('All rows require project, task description, and hours > 0')
+              // Check every row — all 3 fields are mandatory
+              const incompleteRows = rows.filter(r =>
+                !r.project.trim() || !r.taskDescription.trim() || !r.hours || parseFloat(r.hours) <= 0
+              )
+              if (incompleteRows.length > 0) {
+                toast.error('All fields are required: Project, Task Description, and Hours (> 0)')
                 return
               }
-              if (validRows.length === 0) {
-                toast.error('Add at least one complete entry (project, task, hours)')
-                return
-              }
-              saveMutation.mutate(validRows)
+              saveMutation.mutate(rows)
             }}
             disabled={saveMutation.isPending}
           >

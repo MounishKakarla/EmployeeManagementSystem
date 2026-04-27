@@ -247,17 +247,12 @@ export default function LeaveScreen() {
             {/* Balance Cards */}
             <Text style={[styles.sectionTitle, { color: Colors.textMuted }]}>Leave Balances</Text>
 
-            {/* 2-row 2-column balance grid */}
+            {/* 1-row 2-column balance grid */}
             <View style={{ paddingHorizontal: Spacing.md, gap: 10 }}>
               {/* Row 1: Annual | Sick/Casual */}
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <BalanceCard label="Annual / Earned" remaining={b?.annualRemaining}     total={b?.annualTotal}      color={Colors.accent}  icon="umbrella-outline" colors={Colors} />
                 <BalanceCard label="Sick / Casual"   remaining={b?.sickCasualRemaining} total={b?.sickCasualTotal}  color={Colors.danger}  icon="medkit-outline"   colors={Colors} />
-              </View>
-              {/* Row 2: Comp Off | Unpaid */}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <BalanceCard label="Comp Off" remaining={b?.compOffRemaining} total={b?.compOffEarned} color={Colors.warning}   icon="trending-up-outline" colors={Colors} />
-                <BalanceCard label="Unpaid"   used={b?.unpaidUsed}                                     color={Colors.textMuted} icon="ban-outline"         colors={Colors} />
               </View>
             </View>
 

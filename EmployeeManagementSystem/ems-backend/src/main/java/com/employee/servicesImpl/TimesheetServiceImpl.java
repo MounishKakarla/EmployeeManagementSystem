@@ -58,8 +58,8 @@ public class TimesheetServiceImpl implements TimesheetService {
                     .build();
         }
 
-        if (ts.getStatus() == TimesheetStatus.SUBMITTED || ts.getStatus() == TimesheetStatus.APPROVED)
-            throw new IllegalStateException("Cannot edit a submitted or approved timesheet.");
+        if (ts.getStatus() == TimesheetStatus.APPROVED)
+            throw new IllegalStateException("Approved timesheets cannot be edited.");
 
         if (dto.getTaskDescription() != null) ts.setTaskDescription(dto.getTaskDescription());
 
@@ -161,6 +161,19 @@ public class TimesheetServiceImpl implements TimesheetService {
     @Override
     public Page<TimesheetDTO> getPendingTimesheets(Pageable pageable) {
         return timesheetRepo.findByStatusOrderBySubmittedAtAsc(TimesheetStatus.SUBMITTED, pageable).map(this::toDTO);
+    }
+
+    @Override
+    @Transactional
+    public void deleteEntry(String empId, Long id) {
+        Timesheet ts = timesheetRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Timesheet not found: " + id));
+        if (!ts.getEmployee().getEmpId().equals(empId))
+            throw new IllegalStateException("Not authorized to delete this entry.");
+        if (ts.getStatus() == TimesheetStatus.APPROVED)
+            throw new IllegalStateException("Approved timesheets cannot be deleted.");
+        timesheetRepo.delete(ts);
+        auditService.log(empId, "DELETE_TIMESHEET", "Deleted timesheet id=" + id + " week=" + ts.getWeekStartDate());
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────

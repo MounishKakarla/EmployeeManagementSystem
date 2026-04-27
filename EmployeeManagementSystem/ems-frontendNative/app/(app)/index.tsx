@@ -125,43 +125,13 @@ export default function DashboardScreen() {
             colors={Colors}
           />
           <StatCard
-            label="Sick Leave"
-            value={balance?.sickRemaining ?? '—'}
-            sub={`of ${balance?.sickTotal ?? '?'} total`}
+            label="Sick / Casual"
+            value={balance?.sickCasualRemaining ?? '—'}
+            sub={`of ${balance?.sickCasualTotal ?? 10} total`}
             color={Colors.danger}
             icon="medkit-outline"
             colors={Colors}
           />
-        </View>
-        <View style={styles.row}>
-          <StatCard
-            label="Casual Leave"
-            value={balance?.casualRemaining ?? '—'}
-            sub={`of ${balance?.casualTotal ?? '?'} total`}
-            color={Colors.info}
-            icon="cafe-outline"
-            colors={Colors}
-          />
-          {balance?.paternityTotal != null && (
-            <StatCard
-              label="Paternity"
-              value={balance.paternityRemaining ?? '—'}
-              sub={`of ${balance.paternityTotal} total`}
-              color={Colors.success}
-              icon="people-outline"
-              colors={Colors}
-            />
-          )}
-          {balance?.maternityTotal != null && (
-            <StatCard
-              label="Maternity"
-              value={balance.maternityRemaining ?? '—'}
-              sub={`of ${balance.maternityTotal} total`}
-              color={Colors.success}
-              icon="heart-outline"
-              colors={Colors}
-            />
-          )}
         </View>
 
         {/* Quick Actions */}
