@@ -95,10 +95,10 @@ export default function CalendarPicker({
             </TouchableOpacity>
           </View>
 
-          {/* Weekday labels */}
+          {/* Weekday labels — Sa/Su tinted to signal non-workdays */}
           <View style={styles.weekRow}>
-            {WEEKDAYS.map(d => (
-              <Text key={d} style={[styles.weekLabel, { color: Colors.textMuted, width: CELL_SIZE }]}>{d}</Text>
+            {WEEKDAYS.map((d, i) => (
+              <Text key={d} style={[styles.weekLabel, { color: i >= 5 ? Colors.danger : Colors.textMuted, width: CELL_SIZE, opacity: i >= 5 ? 0.6 : 1 }]}>{d}</Text>
             ))}
           </View>
 
@@ -110,7 +110,9 @@ export default function CalendarPicker({
               const cellDay = viewMonth.date(day).startOf('day')
               const isToday = cellDay.isSame(today, 'day')
               const isSelected = selDay ? cellDay.isSame(selDay, 'day') : false
-              const isDisabled = minDay ? cellDay.isBefore(minDay, 'day') : false
+              const dow = cellDay.day() // 0=Sun, 6=Sat
+              const isWeekend = dow === 0 || dow === 6
+              const isDisabled = isWeekend || (minDay ? cellDay.isBefore(minDay, 'day') : false)
               const inRange = rangeStartDay && selDay
                 ? (cellDay.isAfter(rangeStartDay, 'day') && cellDay.isBefore(selDay, 'day'))
                   || (cellDay.isAfter(selDay, 'day') && cellDay.isBefore(rangeStartDay, 'day'))
@@ -135,10 +137,10 @@ export default function CalendarPicker({
                 >
                   <Text style={[
                     styles.dayText,
-                    { color: isDisabled ? Colors.textMuted : Colors.textPrimary },
+                    { color: isWeekend ? Colors.danger : (isDisabled ? Colors.textMuted : Colors.textPrimary) },
                     isToday && !isSelected && { color: Colors.accent, fontWeight: FontWeight.bold },
                     isSelected && { color: '#fff', fontWeight: FontWeight.bold },
-                    isDisabled && { opacity: 0.35 },
+                    isDisabled && { opacity: isWeekend ? 0.4 : 0.35 },
                   ]}>
                     {day}
                   </Text>

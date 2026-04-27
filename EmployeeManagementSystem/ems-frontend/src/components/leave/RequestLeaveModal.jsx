@@ -102,13 +102,21 @@ export default function RequestLeaveModal({ open, onClose, balance, onSuccess })
           error={errors.startDate?.message}
           {...register('startDate', {
             required: 'Required',
-            validate: v => v >= new Date().toISOString().split('T')[0] || 'Cannot be in the past',
+            validate: v => {
+              const dow = new Date(v + 'T12:00:00').getDay()
+              if (dow === 0 || dow === 6) return 'Weekends are not allowed'
+              return v >= new Date().toISOString().split('T')[0] || 'Cannot be in the past'
+            },
           })} />
         <BaseInput label="End Date" type="date" required
           error={errors.endDate?.message}
           {...register('endDate', {
             required: 'Required',
-            validate: v => !startDate || v >= startDate || 'Must be on or after start date',
+            validate: v => {
+              const dow = new Date(v + 'T12:00:00').getDay()
+              if (dow === 0 || dow === 6) return 'Weekends are not allowed'
+              return !startDate || v >= startDate || 'Must be on or after start date'
+            },
           })} />
       </div>
 

@@ -9,6 +9,9 @@ import toast from 'react-hot-toast'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// Only Mon–Fri are selectable working days
+const WORKING_DAYS = DAYS.slice(0, 5)
+const WORKING_DAY_LABELS = DAY_LABELS.slice(0, 5)
 
 function getWeekDates(weekStartDate) {
   return DAYS.map((_, idx) => {
@@ -22,11 +25,11 @@ function formatDateLabel(date) {
   return `${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`
 }
 
-const emptyRow = () => ({
+const emptyRow = (defaultDay = 'monday') => ({
   _key: Math.random().toString(36).slice(2),
   project: '',
   taskDescription: '',
-  day: 'monday',   // single selected day
+  day: defaultDay,
   hours: '',
 })
 
@@ -129,8 +132,8 @@ export default function TimesheetEntryForm({
         <table className="timesheet-grid" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ minWidth: 160, textAlign: 'left', padding: '10px 12px' }}>Project</th>
-              <th style={{ minWidth: 180, textAlign: 'left', padding: '10px 12px' }}>Task</th>
+              <th style={{ minWidth: 160, textAlign: 'left', padding: '10px 12px' }}>Project <span style={{ color: 'var(--danger)' }}>*</span></th>
+              <th style={{ minWidth: 180, textAlign: 'left', padding: '10px 12px' }}>Task <span style={{ color: 'var(--danger)' }}>*</span></th>
               <th style={{ minWidth: 150, textAlign: 'center', padding: '10px 12px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                   <Calendar size={13} /> Day
@@ -182,9 +185,9 @@ export default function TimesheetEntryForm({
                     onChange={e => updateRow(row._key, 'day', e.target.value)}
                     style={{ fontSize: 13, padding: '6px 10px', width: '100%', cursor: 'pointer' }}
                   >
-                    {DAYS.map((day, idx) => (
+                    {WORKING_DAYS.map((day, idx) => (
                       <option key={day} value={day}>
-                        {DAY_LABELS[idx]} — {formatDateLabel(weekDates[idx])}
+                        {WORKING_DAY_LABELS[idx]} — {formatDateLabel(weekDates[idx])}
                       </option>
                     ))}
                   </select>

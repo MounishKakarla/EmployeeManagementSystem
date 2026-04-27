@@ -51,8 +51,11 @@ export default function TimesheetScreen() {
   const [projectName, setProjectName] = useState('')
   const [hours, setHours]             = useState('')
   const [taskDesc, setTaskDesc]       = useState('')
-  const [selectedDay, setSelectedDay] = useState(DAYS[dayjs().day() === 0 ? 6 : dayjs().day() - 1].key)
+  // Default to current weekday; if today is Sat/Sun default to Friday (idx 4)
+  const _todayIdx = dayjs().day() === 0 ? 6 : dayjs().day() - 1
+  const [selectedDay, setSelectedDay] = useState(DAYS[_todayIdx >= 5 ? 4 : _todayIdx].key)
   const [editingId, setEditingId]     = useState<number | null>(null)
+  const [saveAttempted, setSaveAttempted] = useState(false)
   const [teamFilter, setTeamFilter]   = useState('')
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [tsConfirm, setTsConfirm]       = useState<ConfirmTS>(null)
@@ -78,6 +81,7 @@ export default function TimesheetScreen() {
   const currentWeekStart = monday.format('YYYY-MM-DD')
 
   const handleSave = () => {
+    setSaveAttempted(true)
     if (!projectName.trim()) {
       Toast.show({ type: 'error', text1: 'Project name is required' }); return
     }
@@ -100,7 +104,7 @@ export default function TimesheetScreen() {
     }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Entry saved!' })
-      setHours(''); setTaskDesc(''); setProjectName(''); setEditingId(null); refetch()
+      setHours(''); setTaskDesc(''); setProjectName(''); setEditingId(null); setSaveAttempted(false); refetch()
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to save entry' }),
   })
@@ -225,29 +229,57 @@ export default function TimesheetScreen() {
             {weekStatus !== 'SUBMITTED' && weekStatus !== 'APPROVED' && (
               <View style={[styles.card, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                 <Text style={[styles.cardTitle, { color: Colors.textPrimary }]}>Add Entry</Text>
-                <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Project Name</Text>
-                <TextInput style={[styles.input, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="e.g. EMS Backend" placeholderTextColor={Colors.textMuted} value={projectName} onChangeText={setProjectName} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Project Name</Text>
+                  <Text style={{ color: Colors.danger, fontSize: FontSize.sm }}>*</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, { backgroundColor: Colors.bgTertiary, color: Colors.textPrimary,
+                    borderColor: saveAttempted && !projectName.trim() ? Colors.danger : Colors.border }]}
+                  placeholder="e.g. EMS Backend" placeholderTextColor={Colors.textMuted}
+                  value={projectName} onChangeText={setProjectName} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md }}>
                   <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Day</Text>
-                  <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Hours Worked</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Hours Worked</Text>
+                    <Text style={{ color: Colors.danger, fontSize: FontSize.sm }}>*</Text>
+                  </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
                   <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                     {DAYS.map((d, idx) => {
                       const pillDate = dayjs(currentWeekStart).add(idx, 'day')
                       const isActive = selectedDay === d.key
+                      const isWeekend = idx === 5 || idx === 6
                       return (
-                        <TouchableOpacity key={d.key} style={[styles.dayPill, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }, isActive && { backgroundColor: Colors.accentLight, borderColor: Colors.accent }]} onPress={() => setSelectedDay(d.key)}>
-                          <Text style={[styles.dayPillText, { color: Colors.textSecondary }, isActive && { color: Colors.accent, fontWeight: FontWeight.bold }]}>{d.label}</Text>
-                          <Text style={{ fontSize: 8, color: isActive ? Colors.accent : Colors.textMuted, textAlign: 'center' }}>{pillDate.format('D MMM')}</Text>
+                        <TouchableOpacity
+                          key={d.key}
+                          disabled={isWeekend}
+                          style={[
+                            styles.dayPill,
+                            { backgroundColor: Colors.bgTertiary, borderColor: Colors.border },
+                            isActive && { backgroundColor: Colors.accentLight, borderColor: Colors.accent },
+                            isWeekend && { opacity: 0.35 },
+                          ]}
+                          onPress={() => setSelectedDay(d.key)}
+                        >
+                          <Text style={[styles.dayPillText, { color: isWeekend ? Colors.danger : Colors.textSecondary }, isActive && { color: Colors.accent, fontWeight: FontWeight.bold }]}>{d.label}</Text>
+                          <Text style={{ fontSize: 8, color: isActive ? Colors.accent : (isWeekend ? Colors.danger : Colors.textMuted), textAlign: 'center' }}>{pillDate.format('D MMM')}</Text>
                         </TouchableOpacity>
                       )
                     })}
                   </View>
                   <TextInput style={[styles.input, { width: 80, marginTop: 0, backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="0.0" placeholderTextColor={Colors.textMuted} keyboardType="decimal-pad" value={hours} onChangeText={setHours} />
                 </View>
-                <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Task Description</Text>
-                <TextInput style={[styles.input, { height: 68, textAlignVertical: 'top', backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="What did you work on?" placeholderTextColor={Colors.textMuted} value={taskDesc} onChangeText={setTaskDesc} multiline />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Task Description</Text>
+                  <Text style={{ color: Colors.danger, fontSize: FontSize.sm }}>*</Text>
+                </View>
+                <TextInput
+                  style={[styles.input, { height: 68, textAlignVertical: 'top', backgroundColor: Colors.bgTertiary, color: Colors.textPrimary,
+                    borderColor: saveAttempted && !taskDesc.trim() ? Colors.danger : Colors.border }]}
+                  placeholder="What did you work on?" placeholderTextColor={Colors.textMuted}
+                  value={taskDesc} onChangeText={setTaskDesc} multiline />
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity style={[styles.btn, { flex: 1, backgroundColor: Colors.accent }, saveMutation.isPending && { opacity: 0.6 }]} onPress={handleSave} disabled={saveMutation.isPending}>
                     <Text style={styles.btnText}>{saveMutation.isPending ? 'Saving…' : (editingId ? 'Update Entry' : 'Save Entry')}</Text>
