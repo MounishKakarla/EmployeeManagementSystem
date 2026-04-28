@@ -65,6 +65,12 @@ public class Timesheet {
     @Column(name = "review_notes", length = 500)
     private String reviewNotes;
 
+    @Column(name = "start_time", length = 5)
+    private String startTime;
+
+    @Column(name = "end_time", length = 5)
+    private String endTime;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

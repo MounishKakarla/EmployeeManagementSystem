@@ -143,14 +143,6 @@ export default function DashboardScreen() {
           <QuickAction icon="document-text-outline" label="Timesheets"   color={Colors.info}    onPress={() => router.push('/timesheets')} colors={Colors} />
         </View>
 
-        {/* Employee ID badge */}
-        <View style={styles.idBadge}>
-          <Ionicons name="card-outline" size={14} color={Colors.textMuted} />
-          <Text style={[styles.idText, { color: Colors.textMuted }]}>Employee ID: {user?.empId}</Text>
-          <View style={[styles.rolePill, { backgroundColor: Colors.accentLight }]}>
-            <Text style={[styles.roleText, { color: Colors.accent }]}>{user?.roles?.[0]}</Text>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   )
@@ -177,8 +169,4 @@ const styles = StyleSheet.create({
   quickAction: { width: '47%', borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', gap: Spacing.sm, borderWidth: 1 },
   quickIcon:   { width: 48, height: 48, borderRadius: Radius.sm, justifyContent: 'center', alignItems: 'center' },
   quickLabel:  { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  idBadge:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: Spacing.lg, padding: Spacing.md },
-  idText:      { fontSize: FontSize.sm },
-  rolePill:    { paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.full },
-  roleText:    { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
 })

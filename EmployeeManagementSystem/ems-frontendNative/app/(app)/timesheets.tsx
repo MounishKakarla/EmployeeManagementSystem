@@ -1,5 +1,7 @@
 // app/(app)/timesheets.tsx — Timesheet Screen with Team Review
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl, Modal, ActivityIndicator } from 'react-native'
+import * as Print from 'expo-print'
+import * as Sharing from 'expo-sharing'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,9 +11,10 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import CalendarPicker from '../../src/components/CalendarPicker'
+import TimePicker from '../../src/components/TimePicker'
 import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 dayjs.extend(isoWeek)
 
@@ -57,6 +60,10 @@ export default function TimesheetScreen() {
   const [editingId, setEditingId]         = useState<number | null>(null)
   const [saveAttempted, setSaveAttempted] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [startTime, setStartTime] = useState('')
+  const [endTime,   setEndTime]   = useState('')
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false)
+  const [showEndTimePicker,   setShowEndTimePicker]   = useState(false)
   const [teamFilter, setTeamFilter]   = useState('')
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [tsConfirm, setTsConfirm]       = useState<ConfirmTS>(null)
@@ -107,6 +114,113 @@ export default function TimesheetScreen() {
   const monday = dayjs(selectedDate).startOf('isoWeek')
   const currentWeekStart = monday.format('YYYY-MM-DD')
 
+  // Auto-calculate hours from start/end times
+  useEffect(() => {
+    if (startTime && endTime) {
+      const [sh, sm] = startTime.split(':').map(Number)
+      const [eh, em] = endTime.split(':').map(Number)
+      let diff = (eh * 60 + em) - (sh * 60 + sm)
+      if (diff < 0) diff += 24 * 60
+      if (diff > 0) setHours((diff / 60).toFixed(1))
+    }
+  }, [startTime, endTime])
+
+  const fmt12hr = (t: string) => {
+    if (!t) return ''
+    const [h, m] = t.split(':').map(Number)
+    const period = h >= 12 ? 'PM' : 'AM'
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`
+  }
+
+  const handleExportPDF = async () => {
+    if (entries.length === 0) {
+      Toast.show({ type: 'error', text1: 'No entries to export' }); return
+    }
+
+    const emp     = entries[0]
+    const weekEnd = dayjs(currentWeekStart).add(6, 'day').format('DD MMM YYYY')
+    const DAYS_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+
+    const rowsHtml = entries.flatMap((e: any) =>
+      DAYS.map((d, i) => {
+        const h = e[d.key] || 0
+        if (h === 0) return ''
+        const timeCell = (e.startTime && e.endTime)
+          ? `${e.startTime}–${e.endTime}<br><span style="color:#888;font-size:10px">${fmt12hr(e.startTime)} – ${fmt12hr(e.endTime)}</span>`
+          : '—'
+        const statusBg = e.status === 'APPROVED' ? '#d4edda' : e.status === 'SUBMITTED' ? '#fff3cd' : e.status === 'REJECTED' ? '#f8d7da' : '#e9ecef'
+        const statusFg = e.status === 'APPROVED' ? '#155724' : e.status === 'SUBMITTED' ? '#856404' : e.status === 'REJECTED' ? '#721c24' : '#555'
+        return `<tr>
+          <td>${DAYS_FULL[i]}</td>
+          <td><strong>${e.project}</strong></td>
+          <td>${e.taskDescription || '—'}</td>
+          <td style="text-align:center">${timeCell}</td>
+          <td style="text-align:center;font-weight:700;color:#4361ee">${h}h</td>
+          <td style="text-align:center"><span style="background:${statusBg};color:${statusFg};padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">${e.status}</span></td>
+        </tr>`
+      })
+    ).filter(Boolean).join('')
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>Timesheet — ${currentWeekStart}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  body { font-family: Arial, sans-serif; padding: 28px; color: #111; font-size: 12px }
+  .logo { font-size: 18px; font-weight: 700; color: #4361ee; margin-bottom: 4px }
+  h1 { font-size: 16px; margin-bottom: 16px; color: #222 }
+  .meta { background: #f4f4f8; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; line-height: 1.9 }
+  .meta strong { color: #111 }
+  table { width: 100%; border-collapse: collapse; font-size: 11px }
+  th { background: #4361ee; color: #fff; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px }
+  td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: middle }
+  tr:nth-child(even) td { background: #fafafa }
+  .totals { margin-top: 16px; text-align: right; font-size: 13px }
+  .totals strong { color: #4361ee; font-size: 16px }
+  .bar-track { height: 8px; background: #e9ecef; border-radius: 4px; margin-top: 8px; overflow: hidden }
+  .bar-fill { height: 100%; border-radius: 4px; background: ${pct >= 100 ? '#28a745' : pct >= 60 ? '#4361ee' : '#ffc107'} }
+  .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #eee; font-size: 10px; color: #aaa }
+</style></head>
+<body>
+  <div class="logo">Tektalis EMS</div>
+  <h1>Timesheet Report</h1>
+  <div class="meta">
+    <strong>Employee:</strong> ${emp?.employeeName || '—'} &nbsp;(${emp?.empId || '—'})<br>
+    <strong>Department:</strong> ${emp?.department || '—'}<br>
+    <strong>Week:</strong> ${dayjs(currentWeekStart).format('DD MMM YYYY')} — ${weekEnd}<br>
+    <strong>Status:</strong> ${weekStatus}
+  </div>
+  <table>
+    <thead><tr><th>Day</th><th>Project</th><th>Task</th><th style="text-align:center">Time</th><th style="text-align:center">Hours</th><th style="text-align:center">Status</th></tr></thead>
+    <tbody>
+      ${rowsHtml || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888">No entries</td></tr>'}
+    </tbody>
+  </table>
+  <div class="totals">
+    Week total: <strong>${totalH.toFixed(1)}h</strong> / Target: ${targetH}h
+    <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, pct)}%"></div></div>
+  </div>
+  <div class="footer">Generated by Tektalis EMS &bull; ${dayjs().format('DD MMM YYYY, HH:mm')}</div>
+</body></html>`
+
+    try {
+      Toast.show({ type: 'info', text1: 'Generating PDF…', visibilityTime: 1500 })
+      const { uri } = await Print.printToFileAsync({ html, base64: false })
+      const canShare = await Sharing.isAvailableAsync()
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share Timesheet PDF',
+          UTI: 'com.adobe.pdf',
+        })
+      } else {
+        Toast.show({ type: 'error', text1: 'Sharing not available on this device' })
+      }
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err?.message || 'PDF export failed' })
+    }
+  }
+
   const handleSave = () => {
     setSaveAttempted(true)
     if (!projectName.trim()) {
@@ -127,11 +241,14 @@ export default function TimesheetScreen() {
       weekStartDate:   currentWeekStart,
       project:         projectName.trim(),
       taskDescription: taskDesc.trim(),
+      startTime:       startTime || undefined,
+      endTime:         endTime   || undefined,
       [selectedDay]:   parseFloat(hours) || 0,
     }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Entry saved!' })
-      setHours(''); setTaskDesc(''); setProjectName(''); setEditingId(null); setSaveAttempted(false); refetch()
+      setHours(''); setTaskDesc(''); setProjectName(''); setStartTime(''); setEndTime('')
+      setEditingId(null); setSaveAttempted(false); refetch()
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to save entry' }),
   })
@@ -186,6 +303,8 @@ export default function TimesheetScreen() {
     setEditingId(e.id)
     setProjectName(e.project)
     setTaskDesc(e.taskDescription)
+    setStartTime(e.startTime || '')
+    setEndTime(e.endTime || '')
     const firstDay = DAYS.find(d => (e[d.key] || 0) > 0)
     if (firstDay) {
       setSelectedDay(firstDay.key)
@@ -197,6 +316,7 @@ export default function TimesheetScreen() {
 
   const resetForm = () => {
     setEditingId(null); setProjectName(''); setHours(''); setTaskDesc('')
+    setStartTime(''); setEndTime('')
   }
 
   const entries   = Array.isArray(data?.data) ? data.data : (data?.data?.entries || [])
@@ -334,6 +454,52 @@ export default function TimesheetScreen() {
                   </View>
                   <TextInput style={[styles.input, { width: 80, marginTop: 0, backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="0.0" placeholderTextColor={Colors.textMuted} keyboardType="decimal-pad" value={hours} onChangeText={setHours} />
                 </View>
+                {/* Time range row */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.fieldLabel, { color: Colors.textMuted, marginBottom: 4 }]}>Start Time</Text>
+                    <TouchableOpacity
+                      style={[styles.timeBtn, { backgroundColor: Colors.bgTertiary, borderColor: startTime ? Colors.accent : Colors.border }]}
+                      onPress={() => setShowStartTimePicker(true)}
+                    >
+                      <Ionicons name="time-outline" size={14} color={startTime ? Colors.accent : Colors.textMuted} />
+                      <Text style={{ fontSize: FontSize.sm, color: startTime ? Colors.textPrimary : Colors.textMuted }}>
+                        {startTime || 'Start'}
+                      </Text>
+                      {startTime && (
+                        <Text style={{ fontSize: 10, color: Colors.textMuted }}>
+                          {'  ' + fmt12hr(startTime)}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.fieldLabel, { color: Colors.textMuted, marginBottom: 4 }]}>End Time</Text>
+                    <TouchableOpacity
+                      style={[styles.timeBtn, { backgroundColor: Colors.bgTertiary, borderColor: endTime ? Colors.accent : Colors.border }]}
+                      onPress={() => setShowEndTimePicker(true)}
+                    >
+                      <Ionicons name="time-outline" size={14} color={endTime ? Colors.accent : Colors.textMuted} />
+                      <Text style={{ fontSize: FontSize.sm, color: endTime ? Colors.textPrimary : Colors.textMuted }}>
+                        {endTime || 'End'}
+                      </Text>
+                      {endTime && (
+                        <Text style={{ fontSize: 10, color: Colors.textMuted }}>
+                          {'  ' + fmt12hr(endTime)}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {(startTime || endTime) && (
+                    <TouchableOpacity
+                      style={[styles.timeClear, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                      onPress={() => { setStartTime(''); setEndTime('') }}
+                    >
+                      <Ionicons name="close" size={14} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Task Description</Text>
                   <Text style={{ color: Colors.danger, fontSize: FontSize.sm }}>*</Text>
@@ -368,6 +534,18 @@ export default function TimesheetScreen() {
                           {editingId === e.id && <Ionicons name="pencil" size={12} color={Colors.accent} />}
                         </View>
                         <Text style={[styles.entryTask, { color: Colors.textSecondary }]} numberOfLines={1}>{e.taskDescription || 'No description'}</Text>
+                        {(e.startTime || e.endTime) && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            <Ionicons name="time-outline" size={11} color={Colors.accent} />
+                            <Text style={{ fontSize: 11, color: Colors.accent }}>
+                              {e.startTime || '?'} – {e.endTime || '?'}
+                              {'  '}
+                              <Text style={{ color: Colors.textMuted }}>
+                                ({fmt12hr(e.startTime || '')} – {fmt12hr(e.endTime || '')})
+                              </Text>
+                            </Text>
+                          </View>
+                        )}
                         <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                           {DAYS.map(d => {
                             const val = e[d.key] || 0
@@ -391,12 +569,21 @@ export default function TimesheetScreen() {
                 ))
             }
 
-            {canSubmit && (
-              <TouchableOpacity style={[styles.greenBtn, { backgroundColor: Colors.success }, submitMutation.isPending && { opacity: 0.6 }]} onPress={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
-                <Ionicons name="send-outline" size={16} color="#fff" />
-                <Text style={styles.greenBtnText}>{submitMutation.isPending ? 'Submitting…' : 'Submit for Review'}</Text>
-              </TouchableOpacity>
-            )}
+            {/* Action buttons row */}
+            <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
+              {canSubmit && (
+                <TouchableOpacity style={[styles.greenBtn, { flex: 1, margin: 0, backgroundColor: Colors.success }, submitMutation.isPending && { opacity: 0.6 }]} onPress={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+                  <Ionicons name="send-outline" size={16} color="#fff" />
+                  <Text style={styles.greenBtnText}>{submitMutation.isPending ? 'Submitting…' : 'Submit'}</Text>
+                </TouchableOpacity>
+              )}
+              {entries.length > 0 && (
+                <TouchableOpacity style={[styles.shareBtn, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]} onPress={handleExportPDF}>
+                  <Ionicons name="document-outline" size={16} color={Colors.accent} />
+                  <Text style={[styles.shareBtnText, { color: Colors.accent }]}>Export PDF</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* ── Past Timesheets with date filter ──────────────────── */}
             <Text style={[styles.sectionTitle, { color: Colors.textMuted }]}>Past Timesheets</Text>
@@ -559,6 +746,20 @@ export default function TimesheetScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* ── Time pickers ─────────────────────────────────────────────── */}
+      <TimePicker
+        visible={showStartTimePicker} title="Start Time"
+        onClose={() => setShowStartTimePicker(false)}
+        onSelect={t => { setStartTime(t); setShowStartTimePicker(false) }}
+        value={startTime || undefined}
+      />
+      <TimePicker
+        visible={showEndTimePicker} title="End Time"
+        onClose={() => setShowEndTimePicker(false)}
+        onSelect={t => { setEndTime(t); setShowEndTimePicker(false) }}
+        value={endTime || undefined}
+      />
 
       {/* ── Calendar pickers ─────────────────────────────────────────── */}
       <CalendarPicker
@@ -728,6 +929,14 @@ const styles = StyleSheet.create({
   // Date range filter
   dateFilterRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, marginBottom: Spacing.sm, padding: Spacing.sm, borderRadius: Radius.sm, borderWidth: 1 },
   dateFilterBtn:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Radius.sm, borderWidth: 1 },
+
+  // Time buttons
+  timeBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: Radius.sm, borderWidth: 1 },
+  timeClear:    { width: 36, justifyContent: 'center', alignItems: 'center', borderRadius: Radius.sm, borderWidth: 1, alignSelf: 'flex-end', height: 38 },
+
+  // Share button
+  shareBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 13, borderRadius: Radius.md, borderWidth: 1 },
+  shareBtnText: { fontWeight: FontWeight.bold, fontSize: FontSize.sm },
 
   // ── Confirm modal ─────────────────────────────────────────────────────────
   overlayBg:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },

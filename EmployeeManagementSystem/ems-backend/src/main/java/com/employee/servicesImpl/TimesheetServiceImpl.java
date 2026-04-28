@@ -62,6 +62,8 @@ public class TimesheetServiceImpl implements TimesheetService {
             throw new IllegalStateException("Approved timesheets cannot be edited.");
 
         if (dto.getTaskDescription() != null) ts.setTaskDescription(dto.getTaskDescription());
+        if (dto.getStartTime() != null) ts.setStartTime(dto.getStartTime());
+        if (dto.getEndTime()   != null) ts.setEndTime(dto.getEndTime());
 
         Set<LocalDate> nonWorking = getWeekNonWorkingDates(weekStart);
         ts.setMondayHours(   validateHours(dto.getMondayHours(),    weekStart,             nonWorking));
@@ -207,6 +209,8 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .sundayHours(t.getSundayHours()).totalHours(t.getTotalHours())
                 .status(t.getStatus()).submittedAt(t.getSubmittedAt())
                 .approvedBy(t.getApprovedBy()).approvedAt(t.getApprovedAt())
-                .reviewNotes(t.getReviewNotes()).createdAt(t.getCreatedAt()).build();
+                .reviewNotes(t.getReviewNotes())
+                .startTime(t.getStartTime()).endTime(t.getEndTime())
+                .createdAt(t.getCreatedAt()).build();
     }
 }

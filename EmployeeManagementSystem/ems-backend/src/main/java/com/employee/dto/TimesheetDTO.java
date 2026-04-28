@@ -32,5 +32,7 @@ public class TimesheetDTO {
     private String          approvedBy;
     private LocalDateTime   approvedAt;
     private String          reviewNotes;
+    private String          startTime;
+    private String          endTime;
     private LocalDateTime   createdAt;
 }

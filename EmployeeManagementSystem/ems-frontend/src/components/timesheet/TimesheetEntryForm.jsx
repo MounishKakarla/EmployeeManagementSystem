@@ -1,10 +1,9 @@
 // src/components/timesheet/TimesheetEntryForm.jsx
-// Each row = one task entry. User picks the day + hours per row.
 import { useState, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { timesheetAPI } from '../../api'
 import { parseApiError } from '../../utils/errorUtils'
-import { Plus, Trash2, Save, Calendar } from 'lucide-react'
+import { Plus, Trash2, Save, Calendar, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -22,34 +21,48 @@ function formatDateLabel(date) {
   return `${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`
 }
 
+function to12hr(time24) {
+  if (!time24) return ''
+  const [h, m] = time24.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+function timeDiffHours(start, end) {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  let diff = (eh * 60 + em) - (sh * 60 + sm)
+  if (diff < 0) diff += 24 * 60
+  return diff > 0 ? (diff / 60).toFixed(1) : null
+}
+
 const emptyRow = () => ({
   _key: Math.random().toString(36).slice(2),
   project: '',
   taskDescription: '',
   day: 'monday',
+  startTime: '',
+  endTime: '',
   hours: '',
 })
 
-// Convert flat row → per-day API shape expected by timesheetAPI
 function rowToApiPayload(row, weekStartDate) {
   const payload = {
     id: row.id,
     weekStartDate,
     project: row.project,
     taskDescription: row.taskDescription,
-    mondayHours: 0,
-    tuesdayHours: 0,
-    wednesdayHours: 0,
-    thursdayHours: 0,
-    fridayHours: 0,
-    saturdayHours: 0,
-    sundayHours: 0,
+    startTime: row.startTime || undefined,
+    endTime: row.endTime || undefined,
+    mondayHours: 0, tuesdayHours: 0, wednesdayHours: 0,
+    thursdayHours: 0, fridayHours: 0, saturdayHours: 0, sundayHours: 0,
   }
   payload[`${row.day}Hours`] = parseFloat(row.hours) || 0
   return payload
 }
 
-// Convert API entries (7-column shape) → flat rows (one row per non-zero day)
 function apiEntriesToRows(entries) {
   const rows = []
   entries.forEach(e => {
@@ -62,11 +75,12 @@ function apiEntriesToRows(entries) {
           project: e.project ?? '',
           taskDescription: e.taskDescription ?? '',
           day,
+          startTime: e.startTime ?? '',
+          endTime: e.endTime ?? '',
           hours: String(h),
         })
       }
     })
-    // If all days are zero, still show one blank row for this entry so user can edit
     const hasAny = DAYS.some(d => parseFloat(e[`${d}Hours`]) || 0)
     if (!hasAny) {
       rows.push({
@@ -75,6 +89,8 @@ function apiEntriesToRows(entries) {
         project: e.project ?? '',
         taskDescription: e.taskDescription ?? '',
         day: 'monday',
+        startTime: e.startTime ?? '',
+        endTime: e.endTime ?? '',
         hours: '',
       })
     }
@@ -86,6 +102,7 @@ export default function TimesheetEntryForm({
   weekStartDate, existingEntries, disabled, onSaved,
 }) {
   const [rows, setRows] = useState([emptyRow()])
+  const [use12hr, setUse12hr] = useState(false)
   const weekDates = getWeekDates(weekStartDate)
 
   useEffect(() => {
@@ -116,39 +133,75 @@ export default function TimesheetEntryForm({
   })
 
   const updateRow = (key, field, value) =>
-    setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value } : r))
+    setRows(prev => prev.map(r => {
+      if (r._key !== key) return r
+      const updated = { ...r, [field]: value }
+      // Auto-calculate hours when both times are set
+      if (field === 'startTime' || field === 'endTime') {
+        const st = field === 'startTime' ? value : r.startTime
+        const et = field === 'endTime'   ? value : r.endTime
+        const auto = timeDiffHours(st, et)
+        if (auto) updated.hours = auto
+      }
+      return updated
+    }))
 
   const addRow = () => setRows(prev => [...prev, emptyRow()])
 
   const removeRow = (key) => {
     const row = rows.find(r => r._key === key)
-    if (row?.id) {
-      deleteMutation.mutate(row.id)
-    } else {
-      setRows(prev => prev.filter(r => r._key !== key))
-    }
+    if (row?.id) deleteMutation.mutate(row.id)
+    else setRows(prev => prev.filter(r => r._key !== key))
   }
 
-  // Summary: total hours per day across all rows
   const dayTotals = DAYS.map(day =>
     rows.reduce((sum, r) => sum + (r.day === day ? (parseFloat(r.hours) || 0) : 0), 0)
   )
   const grandTotal = dayTotals.reduce((a, b) => a + b, 0)
 
+  const timeLabel = (t) => t ? (use12hr ? to12hr(t) : t) : '—'
+
   return (
     <div className="timesheet-form">
+      {/* Format toggle */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => setUse12hr(p => !p)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+        >
+          <Clock size={13} />
+          {use12hr ? '12-hr' : '24-hr'} format
+        </button>
+      </div>
+
       <div style={{ overflowX: 'auto' }}>
         <table className="timesheet-grid" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ minWidth: 160, textAlign: 'left', padding: '10px 12px' }}>Project <span style={{ color: 'var(--danger)' }}>*</span></th>
-              <th style={{ minWidth: 180, textAlign: 'left', padding: '10px 12px' }}>Task <span style={{ color: 'var(--danger)' }}>*</span></th>
-              <th style={{ minWidth: 150, textAlign: 'center', padding: '10px 12px' }}>
+              <th style={{ minWidth: 150, textAlign: 'left', padding: '10px 12px' }}>
+                Project <span style={{ color: 'var(--danger)' }}>*</span>
+              </th>
+              <th style={{ minWidth: 170, textAlign: 'left', padding: '10px 12px' }}>
+                Task <span style={{ color: 'var(--danger)' }}>*</span>
+              </th>
+              <th style={{ minWidth: 140, textAlign: 'center', padding: '10px 12px' }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                   <Calendar size={13} /> Day
                 </span>
               </th>
-              <th style={{ minWidth: 100, textAlign: 'center', padding: '10px 12px' }}>Hours</th>
+              <th style={{ minWidth: 110, textAlign: 'center', padding: '10px 12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <Clock size={13} /> Start
+                </span>
+              </th>
+              <th style={{ minWidth: 110, textAlign: 'center', padding: '10px 12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <Clock size={13} /> End
+                </span>
+              </th>
+              <th style={{ minWidth: 90, textAlign: 'center', padding: '10px 12px' }}>Hours</th>
               {!disabled && <th style={{ width: 40 }} />}
             </tr>
           </thead>
@@ -202,6 +255,50 @@ export default function TimesheetEntryForm({
                   </select>
                 </td>
 
+                {/* Start Time */}
+                <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                  {disabled ? (
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {row.startTime ? timeLabel(row.startTime) : '—'}
+                    </span>
+                  ) : (
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={row.startTime}
+                      onChange={e => updateRow(row._key, 'startTime', e.target.value)}
+                      style={{ fontSize: 13, padding: '6px 8px', width: '100%', textAlign: 'center' }}
+                    />
+                  )}
+                  {!disabled && row.startTime && use12hr && (
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {to12hr(row.startTime)}
+                    </div>
+                  )}
+                </td>
+
+                {/* End Time */}
+                <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                  {disabled ? (
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {row.endTime ? timeLabel(row.endTime) : '—'}
+                    </span>
+                  ) : (
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={row.endTime}
+                      onChange={e => updateRow(row._key, 'endTime', e.target.value)}
+                      style={{ fontSize: 13, padding: '6px 8px', width: '100%', textAlign: 'center' }}
+                    />
+                  )}
+                  {!disabled && row.endTime && use12hr && (
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {to12hr(row.endTime)}
+                    </div>
+                  )}
+                </td>
+
                 {/* Hours */}
                 <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                   <input
@@ -215,10 +312,7 @@ export default function TimesheetEntryForm({
                     disabled={disabled}
                     onChange={e => updateRow(row._key, 'hours', e.target.value)}
                     style={{
-                      width: 80,
-                      textAlign: 'center',
-                      fontWeight: 700,
-                      fontSize: 14,
+                      width: 80, textAlign: 'center', fontWeight: 700, fontSize: 14,
                       color: parseFloat(row.hours) > 0 ? 'var(--accent)' : undefined,
                     }}
                   />
@@ -242,31 +336,30 @@ export default function TimesheetEntryForm({
 
             {/* Daily summary footer */}
             <tr style={{ background: 'var(--bg-tertiary)', fontWeight: 600 }}>
-              <td
-                colSpan={2}
-                style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px' }}
-              >
+              <td colSpan={2} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px' }}>
                 Weekly Summary
               </td>
               <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                   {DAYS.map((day, idx) => (
                     dayTotals[idx] > 0 && (
-                      <span
-                        key={day}
-                        style={{
-                          fontSize: 11,
-                          background: 'var(--bg-secondary)',
-                          borderRadius: 4,
-                          padding: '2px 7px',
-                          color: dayTotals[idx] > 8 ? 'var(--danger)' : 'var(--text-primary)',
-                        }}
-                      >
+                      <span key={day} style={{
+                        fontSize: 11, background: 'var(--bg-secondary)', borderRadius: 4,
+                        padding: '2px 7px',
+                        color: dayTotals[idx] > 8 ? 'var(--danger)' : 'var(--text-primary)',
+                      }}>
                         {DAY_LABELS[idx]}: {dayTotals[idx]}h
                       </span>
                     )
                   ))}
                 </div>
+              </td>
+              <td colSpan={2} style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px' }}>
+                {rows.some(r => r.startTime) && (
+                  <span>{rows.filter(r => r.startTime).map(r =>
+                    `${r.startTime}${r.endTime ? '–' + r.endTime : ''}`
+                  ).join(', ')}</span>
+                )}
               </td>
               <td style={{ textAlign: 'center', fontSize: 14, color: 'var(--accent)', padding: '8px 12px' }}>
                 {grandTotal}h

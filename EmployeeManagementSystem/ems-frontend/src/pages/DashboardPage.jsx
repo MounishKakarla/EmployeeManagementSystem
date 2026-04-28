@@ -341,14 +341,6 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* ── Employee ID Badge ──────────────────────────────────────────── */}
-      <div className="dashboard-id-badge">
-        <Badge size={14} color="var(--text-muted)" />
-        <span>Employee ID: <strong>{user?.empId}</strong></span>
-        {user?.roles?.map(r => (
-          <span key={r} className={`badge role-${r.toLowerCase()}`}>{r}</span>
-        ))}
-      </div>
 
     </div>
   )
