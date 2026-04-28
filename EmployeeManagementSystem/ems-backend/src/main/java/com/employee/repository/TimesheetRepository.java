@@ -32,7 +32,9 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
             Pageable pageable);
 
     // Team timesheets — filterable by empId, status, optional date range
+    // DRAFT entries are excluded (private to the employee) unless explicitly filtered
     @Query("SELECT t FROM Timesheet t WHERE " +
+           "t.status <> com.employee.enums.TimesheetStatus.DRAFT AND " +
            "(:empId IS NULL OR t.employee.empId = :empId) AND " +
            "(:status IS NULL OR t.status = :status) AND " +
            "(:from IS NULL OR t.weekStartDate >= :from) AND " +
