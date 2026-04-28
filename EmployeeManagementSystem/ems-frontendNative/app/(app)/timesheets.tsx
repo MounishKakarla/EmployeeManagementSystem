@@ -300,7 +300,7 @@ export default function TimesheetScreen() {
       action,
       name:    t.employeeName || t.empId,
       project: t.project || t.projectName || '—',
-      week:    fmtWeek(t.weekStartDate),
+      week:    fmtWeek(t),
     })
   }
 
@@ -392,9 +392,14 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
   const pct     = Math.min(100, (totalH / targetH) * 100)
   const progressColor = pct >= 100 ? Colors.success : pct >= 60 ? Colors.accent : Colors.warning
 
-  const fmtWeek = (dateStr: string) => {
-    const d = dayjs(dateStr)
-    return `Wk ${d.isoWeek()} · ${d.format('ddd, DD MMM')}`
+  const DAY_KEYS = ['mondayHours','tuesdayHours','wednesdayHours','thursdayHours','fridayHours','saturdayHours','sundayHours']
+  const fmtWeek = (t: any) => {
+    const monday = dayjs(t.weekStartDate)
+    let d = monday
+    for (let i = 0; i < DAY_KEYS.length; i++) {
+      if ((t[DAY_KEYS[i]] || 0) > 0) { d = monday.add(i, 'day'); break }
+    }
+    return `Wk ${monday.isoWeek()} · ${d.format('ddd, DD MMM')}`
   }
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManage)
@@ -686,7 +691,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                     <View key={t.id} style={[styles.historyRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.entryProject, { color: Colors.textPrimary }]}>{t.project || t.projectName || '—'}</Text>
-                        <Text style={[styles.entryDate, { color: Colors.textMuted }]}>{fmtWeek(t.weekStartDate)}</Text>
+                        <Text style={[styles.entryDate, { color: Colors.textMuted }]}>{fmtWeek(t)}</Text>
                       </View>
                       <Text style={[styles.historyHours, { color: Colors.accent }]}>{t.totalHours ?? 0}h</Text>
                       <View style={[styles.historyBadge, { backgroundColor: sc.bg }]}>
@@ -780,7 +785,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.reviewName, { color: Colors.textPrimary }]}>{t.employeeName || t.empId}</Text>
-                        <Text style={[styles.reviewEmpId, { color: Colors.textMuted }]}>{t.empId} · {fmtWeek(t.weekStartDate)}</Text>
+                        <Text style={[styles.reviewEmpId, { color: Colors.textMuted }]}>{t.empId} · {fmtWeek(t)}</Text>
                       </View>
                       <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
                         <Text style={[styles.statusText, { color: sc.color }]}>{t.status}</Text>

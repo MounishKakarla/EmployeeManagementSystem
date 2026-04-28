@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { timesheetAPI, leaveAPI } from '../api'
 import { parseApiError } from '../utils/errorUtils'
-import { formatDate, formatWeek } from '../utils/dateUtils'
+import { formatDate, formatWeek, firstWorkedDate } from '../utils/dateUtils'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import Pagination from '../components/ui/Pagination'
 import TimesheetEntryForm from '../components/timesheet/TimesheetEntryForm'
@@ -586,7 +586,7 @@ function TimesheetTable({ records, isLoading, showEmployee, actions, page, total
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.empId}</div>
                   </td>
                 )}
-                <td style={{ fontSize: 13 }}>{formatWeek(r.weekStartDate)}</td>
+                <td style={{ fontSize: 13 }}>{formatWeek(firstWorkedDate(r))}</td>
                 <td style={{ fontSize: 13, fontWeight: 500 }}>{r.project}</td>
                 <td style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
                   {r.totalHours ?? 0}h
