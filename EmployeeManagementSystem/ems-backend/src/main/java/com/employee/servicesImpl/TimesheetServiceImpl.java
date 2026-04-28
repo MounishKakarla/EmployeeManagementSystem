@@ -113,7 +113,9 @@ public class TimesheetServiceImpl implements TimesheetService {
 
     @Override
     public Page<TimesheetDTO> getMyTimesheets(String empId, LocalDate from, LocalDate to, Pageable pageable) {
-        return timesheetRepo.findByEmployeeEmpIdAndDateRange(empId, from, to, pageable).map(this::toDTO);
+        LocalDate f = (from != null) ? from : LocalDate.of(2000, 1, 1);
+        LocalDate t = (to   != null) ? to   : LocalDate.of(2100, 12, 31);
+        return timesheetRepo.findByEmployeeEmpIdAndDateRange(empId, f, t, pageable).map(this::toDTO);
     }
 
     @Override
@@ -158,7 +160,9 @@ public class TimesheetServiceImpl implements TimesheetService {
 
     @Override
     public Page<TimesheetDTO> getTeamTimesheets(String empId, TimesheetStatus status, LocalDate from, LocalDate to, Pageable pageable) {
-        return timesheetRepo.findTeamTimesheets(empId, status, from, to, pageable).map(this::toDTO);
+        LocalDate f = (from != null) ? from : LocalDate.of(2000, 1, 1);
+        LocalDate t = (to   != null) ? to   : LocalDate.of(2100, 12, 31);
+        return timesheetRepo.findTeamTimesheets(empId, status, f, t, pageable).map(this::toDTO);
     }
 
     @Override

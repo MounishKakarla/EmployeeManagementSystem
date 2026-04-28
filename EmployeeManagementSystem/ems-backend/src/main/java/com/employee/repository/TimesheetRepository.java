@@ -20,11 +20,9 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     // All entries for the employee for a specific week (multiple projects)
     List<Timesheet> findByEmployeeEmpIdAndWeekStartDate(String empId, LocalDate weekStartDate);
 
-    // Own history — newest week first, optional date range
-    // COALESCE avoids IS NULL on typed LocalDate params (Hibernate type-inference bug)
+    // Own history — newest week first, date range always non-null (service substitutes sentinels)
     @Query("SELECT t FROM Timesheet t WHERE t.employee.empId = :empId AND " +
-           "t.weekStartDate >= COALESCE(:from, t.weekStartDate) AND " +
-           "t.weekStartDate <= COALESCE(:to,   t.weekStartDate) " +
+           "t.weekStartDate >= :from AND t.weekStartDate <= :to " +
            "ORDER BY t.weekStartDate DESC")
     Page<Timesheet> findByEmployeeEmpIdAndDateRange(
             @Param("empId") String empId,
@@ -32,14 +30,13 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
             @Param("to")    LocalDate to,
             Pageable pageable);
 
-    // Team timesheets — filterable by empId/name (partial, case-insensitive), status, optional date range
-    // DRAFT entries are excluded (private to the employee) unless explicitly filtered
+    // Team timesheets — filterable by empId/name (partial), status, date range
+    // DRAFT excluded; date params always non-null (service substitutes sentinels)
     @Query("SELECT t FROM Timesheet t WHERE " +
            "t.status <> com.employee.enums.TimesheetStatus.DRAFT AND " +
            "(:empId IS NULL OR LOWER(t.employee.empId) LIKE LOWER(CONCAT('%', :empId, '%')) OR LOWER(t.employee.name) LIKE LOWER(CONCAT('%', :empId, '%'))) AND " +
            "(:status IS NULL OR t.status = :status) AND " +
-           "t.weekStartDate >= COALESCE(:from, t.weekStartDate) AND " +
-           "t.weekStartDate <= COALESCE(:to,   t.weekStartDate) " +
+           "t.weekStartDate >= :from AND t.weekStartDate <= :to " +
            "ORDER BY t.weekStartDate DESC, t.employee.name ASC")
     Page<Timesheet> findTeamTimesheets(
             @Param("empId")  String empId,
