@@ -21,9 +21,10 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     List<Timesheet> findByEmployeeEmpIdAndWeekStartDate(String empId, LocalDate weekStartDate);
 
     // Own history — newest week first, optional date range
+    // COALESCE avoids IS NULL on typed LocalDate params (Hibernate type-inference bug)
     @Query("SELECT t FROM Timesheet t WHERE t.employee.empId = :empId AND " +
-           "(:from IS NULL OR t.weekStartDate >= :from) AND " +
-           "(:to IS NULL OR t.weekStartDate <= :to) " +
+           "t.weekStartDate >= COALESCE(:from, t.weekStartDate) AND " +
+           "t.weekStartDate <= COALESCE(:to,   t.weekStartDate) " +
            "ORDER BY t.weekStartDate DESC")
     Page<Timesheet> findByEmployeeEmpIdAndDateRange(
             @Param("empId") String empId,
@@ -31,14 +32,14 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
             @Param("to")    LocalDate to,
             Pageable pageable);
 
-    // Team timesheets — filterable by empId, status, optional date range
+    // Team timesheets — filterable by empId/name (partial, case-insensitive), status, optional date range
     // DRAFT entries are excluded (private to the employee) unless explicitly filtered
     @Query("SELECT t FROM Timesheet t WHERE " +
            "t.status <> com.employee.enums.TimesheetStatus.DRAFT AND " +
-           "(:empId IS NULL OR t.employee.empId = :empId) AND " +
+           "(:empId IS NULL OR LOWER(t.employee.empId) LIKE LOWER(CONCAT('%', :empId, '%')) OR LOWER(t.employee.name) LIKE LOWER(CONCAT('%', :empId, '%'))) AND " +
            "(:status IS NULL OR t.status = :status) AND " +
-           "(:from IS NULL OR t.weekStartDate >= :from) AND " +
-           "(:to IS NULL OR t.weekStartDate <= :to) " +
+           "t.weekStartDate >= COALESCE(:from, t.weekStartDate) AND " +
+           "t.weekStartDate <= COALESCE(:to,   t.weekStartDate) " +
            "ORDER BY t.weekStartDate DESC, t.employee.name ASC")
     Page<Timesheet> findTeamTimesheets(
             @Param("empId")  String empId,

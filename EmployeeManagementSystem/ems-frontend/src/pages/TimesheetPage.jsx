@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import { timesheetAPI, leaveAPI } from '../api'
 import { parseApiError } from '../utils/errorUtils'
-import { formatDate } from '../utils/dateUtils'
+import { formatDate, formatWeek } from '../utils/dateUtils'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import Pagination from '../components/ui/Pagination'
 import TimesheetEntryForm from '../components/timesheet/TimesheetEntryForm'
@@ -52,24 +52,34 @@ export default function TimesheetPage() {
   })
   const currentWeekEntries = weekData?.data || []
 
+  // Normalize any date to the Monday of its ISO week so the backend's
+  // weekStartDate comparisons always include the correct week.
+  const toWeekStart = (dateStr) => {
+    if (!dateStr) return dateStr
+    const d = new Date(dateStr + 'T12:00:00')
+    const day = d.getDay() // 0=Sun … 6=Sat
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+    return d.toISOString().split('T')[0]
+  }
+
   // ── My history ─────────────────────────────────────────────────────────────
-  const { data: myData, isLoading: myLoading } = useQuery({
+  const { data: myData, isLoading: myLoading, isFetching: myFetching } = useQuery({
     queryKey: ['timesheet', 'my', myPage, myFrom, myTo],
     queryFn: () => timesheetAPI.getMyTimesheets({
       page: myPage, size: PAGE_SIZE,
-      ...(myFrom && { from: myFrom }),
-      ...(myTo   && { to: myTo }),
+      ...(myFrom && { from: toWeekStart(myFrom) }),
+      ...(myTo   && { to: toWeekStart(myTo) }),
     }),
     enabled: activeTab === 'my',
   })
 
   // ── Team ───────────────────────────────────────────────────────────────────
-  const { data: teamData, isLoading: teamLoading } = useQuery({
+  const { data: teamData, isLoading: teamLoading, isFetching: teamFetching } = useQuery({
     queryKey: ['timesheet', 'team', teamPage, teamEmpId, teamStatus, teamFrom, teamTo],
     queryFn: () => timesheetAPI.getTeam(teamEmpId || undefined, teamStatus || undefined, {
       page: teamPage, size: PAGE_SIZE,
-      ...(teamFrom && { from: teamFrom }),
-      ...(teamTo   && { to: teamTo }),
+      ...(teamFrom && { from: toWeekStart(teamFrom) }),
+      ...(teamTo   && { to: toWeekStart(teamTo) }),
     }),
     enabled: activeTab === 'team' && canManage,
   })
@@ -429,7 +439,7 @@ ${rows.length === 0
               )}
             </div>
           </div>
-          <TimesheetTable records={myHistory} isLoading={myLoading}
+          <TimesheetTable records={myHistory} isLoading={myLoading || myFetching}
             showEmployee={false}
             page={myPage} totalPages={myTotalPages} onPageChange={setMyPage} />
         </div>
@@ -442,7 +452,7 @@ ${rows.length === 0
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div>
                 <label className="form-label">Employee ID</label>
-                <input className="form-input" placeholder="TT0001…" value={teamEmpId}
+                <input className="form-input" placeholder="Name or ID…" value={teamEmpId}
                   style={{ width: 140 }}
                   onChange={e => { setTeamEmpId(e.target.value); setTeamPage(0) }} />
               </div>
@@ -479,7 +489,7 @@ ${rows.length === 0
               )}
             </div>
           </div>
-          <TimesheetTable records={teamHistory} isLoading={teamLoading}
+          <TimesheetTable records={teamHistory} isLoading={teamLoading || teamFetching}
             showEmployee={true}
             actions={(r) => {
               const exportSingle = () => {
@@ -576,7 +586,7 @@ function TimesheetTable({ records, isLoading, showEmployee, actions, page, total
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.empId}</div>
                   </td>
                 )}
-                <td style={{ fontSize: 13 }}>{formatDate(r.weekStartDate)}</td>
+                <td style={{ fontSize: 13 }}>{formatWeek(r.weekStartDate)}</td>
                 <td style={{ fontSize: 13, fontWeight: 500 }}>{r.project}</td>
                 <td style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)' }}>
                   {r.totalHours ?? 0}h

@@ -65,6 +65,7 @@ export default function TimesheetScreen() {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false)
   const [showEndTimePicker,   setShowEndTimePicker]   = useState(false)
   const [teamFilter, setTeamFilter]   = useState('')
+  const [teamSearch, setTeamSearch]   = useState('')
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [tsConfirm, setTsConfirm]       = useState<ConfirmTS>(null)
 
@@ -85,22 +86,25 @@ export default function TimesheetScreen() {
     queryFn: () => timesheetAPI.getWeek(selectedDate),
   })
 
+  // Normalize to Monday so backend weekStartDate comparisons include the right week
+  const toWeekStart = (d: string) => dayjs(d).startOf('isoWeek').format('YYYY-MM-DD')
+
   const { data: myData, refetch: refetchMyHistory } = useQuery({
     queryKey: ['my-timesheets', myFrom, myTo],
     queryFn: () => timesheetAPI.getMyTimesheets({
       page: 0, size: 30,
-      ...(myFrom && { from: myFrom }),
-      ...(myTo   && { to: myTo }),
+      ...(myFrom && { from: toWeekStart(myFrom) }),
+      ...(myTo   && { to: toWeekStart(myTo) }),
     }),
     enabled: activeTab === 'my',
   })
 
-  const { data: teamData, isLoading: teamLoading, refetch: refetchTeam } = useQuery({
-    queryKey: ['team-timesheets', teamFilter, teamFrom, teamTo],
-    queryFn: () => timesheetAPI.getTeam(undefined, teamFilter || undefined, {
+  const { data: teamData, isLoading: teamLoading, isFetching: teamFetching, refetch: refetchTeam } = useQuery({
+    queryKey: ['team-timesheets', teamFilter, teamSearch, teamFrom, teamTo],
+    queryFn: () => timesheetAPI.getTeam(teamSearch.trim() || undefined, teamFilter || undefined, {
       page: 0, size: 50,
-      ...(teamFrom && { from: teamFrom }),
-      ...(teamTo   && { to: teamTo }),
+      ...(teamFrom && { from: toWeekStart(teamFrom) }),
+      ...(teamTo   && { to: toWeekStart(teamTo) }),
     }),
     enabled: canManage && activeTab === 'team',
   })
@@ -296,7 +300,7 @@ export default function TimesheetScreen() {
       action,
       name:    t.employeeName || t.empId,
       project: t.project || t.projectName || '—',
-      week:    dayjs(t.weekStartDate).format('DD MMM YYYY'),
+      week:    fmtWeek(t.weekStartDate),
     })
   }
 
@@ -387,6 +391,11 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
   const targetH = Math.max(8, (5 - leaveWorkdays) * 8)
   const pct     = Math.min(100, (totalH / targetH) * 100)
   const progressColor = pct >= 100 ? Colors.success : pct >= 60 ? Colors.accent : Colors.warning
+
+  const fmtWeek = (dateStr: string) => {
+    const d = dayjs(dateStr)
+    return `Wk ${d.isoWeek()} · ${d.format('ddd, DD MMM')}`
+  }
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManage)
 
@@ -677,7 +686,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                     <View key={t.id} style={[styles.historyRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.entryProject, { color: Colors.textPrimary }]}>{t.project || t.projectName || '—'}</Text>
-                        <Text style={[styles.entryDate, { color: Colors.textMuted }]}>Week of {dayjs(t.weekStartDate).format('DD MMM YYYY')}</Text>
+                        <Text style={[styles.entryDate, { color: Colors.textMuted }]}>{fmtWeek(t.weekStartDate)}</Text>
                       </View>
                       <Text style={[styles.historyHours, { color: Colors.accent }]}>{t.totalHours ?? 0}h</Text>
                       <View style={[styles.historyBadge, { backgroundColor: sc.bg }]}>
@@ -692,6 +701,24 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
 
         {activeTab === 'team' && canManage && (
           <>
+            {/* Employee search */}
+            <View style={[styles.searchRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+              <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+              <TextInput
+                style={[styles.searchInput, { color: Colors.textPrimary }]}
+                placeholder="Search by name or ID…"
+                placeholderTextColor={Colors.textMuted}
+                value={teamSearch}
+                onChangeText={setTeamSearch}
+                autoCapitalize="none"
+              />
+              {teamSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setTeamSearch('')}>
+                  <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
             {/* Status filter pills + date range */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.md, gap: 6, marginBottom: Spacing.sm }}>
               {['', 'SUBMITTED', 'APPROVED', 'REJECTED'].map(s => (
@@ -733,7 +760,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
               )}
             </View>
 
-            {teamLoading ? (
+            {(teamLoading || teamFetching) ? (
               <ActivityIndicator color={Colors.accent} style={{ padding: 40 }} />
             ) : teamList.length === 0 ? (
               <View style={styles.emptyBlock}>
@@ -753,7 +780,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.reviewName, { color: Colors.textPrimary }]}>{t.employeeName || t.empId}</Text>
-                        <Text style={[styles.reviewEmpId, { color: Colors.textMuted }]}>{t.empId} · Week of {dayjs(t.weekStartDate).format('DD MMM')}</Text>
+                        <Text style={[styles.reviewEmpId, { color: Colors.textMuted }]}>{t.empId} · {fmtWeek(t.weekStartDate)}</Text>
                       </View>
                       <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
                         <Text style={[styles.statusText, { color: sc.color }]}>{t.status}</Text>
@@ -897,7 +924,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
               </View>
               <View style={styles.confirmInfoRow}>
                 <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
-                <Text style={[styles.confirmInfoText, { color: Colors.textSecondary }]}>Week of {tsConfirm?.week}</Text>
+                <Text style={[styles.confirmInfoText, { color: Colors.textSecondary }]}>{tsConfirm?.week}</Text>
               </View>
             </View>
             <View style={styles.confirmActions}>
@@ -988,6 +1015,10 @@ const styles = StyleSheet.create({
   // Date range filter
   dateFilterRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, marginBottom: Spacing.sm, padding: Spacing.sm, borderRadius: Radius.sm, borderWidth: 1 },
   dateFilterBtn:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Radius.sm, borderWidth: 1 },
+
+  // Team search
+  searchRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, marginBottom: Spacing.sm, padding: Spacing.sm, borderRadius: Radius.sm, borderWidth: 1, paddingHorizontal: Spacing.md },
+  searchInput:  { flex: 1, fontSize: FontSize.sm, paddingVertical: 6 },
 
   // Time buttons
   timeBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: Radius.sm, borderWidth: 1 },
