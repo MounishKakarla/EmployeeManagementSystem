@@ -20,17 +20,29 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, Long> {
     // All entries for the employee for a specific week (multiple projects)
     List<Timesheet> findByEmployeeEmpIdAndWeekStartDate(String empId, LocalDate weekStartDate);
 
-    // Own history — newest week first
-    Page<Timesheet> findByEmployeeEmpIdOrderByWeekStartDateDesc(String empId, Pageable pageable);
+    // Own history — newest week first, optional date range
+    @Query("SELECT t FROM Timesheet t WHERE t.employee.empId = :empId AND " +
+           "(:from IS NULL OR t.weekStartDate >= :from) AND " +
+           "(:to IS NULL OR t.weekStartDate <= :to) " +
+           "ORDER BY t.weekStartDate DESC")
+    Page<Timesheet> findByEmployeeEmpIdAndDateRange(
+            @Param("empId") String empId,
+            @Param("from")  LocalDate from,
+            @Param("to")    LocalDate to,
+            Pageable pageable);
 
-    // Team timesheets — filterable by status and/or empId
+    // Team timesheets — filterable by empId, status, optional date range
     @Query("SELECT t FROM Timesheet t WHERE " +
            "(:empId IS NULL OR t.employee.empId = :empId) AND " +
-           "(:status IS NULL OR t.status = :status) " +
+           "(:status IS NULL OR t.status = :status) AND " +
+           "(:from IS NULL OR t.weekStartDate >= :from) AND " +
+           "(:to IS NULL OR t.weekStartDate <= :to) " +
            "ORDER BY t.weekStartDate DESC, t.employee.name ASC")
     Page<Timesheet> findTeamTimesheets(
             @Param("empId")  String empId,
             @Param("status") TimesheetStatus status,
+            @Param("from")   LocalDate from,
+            @Param("to")     LocalDate to,
             Pageable pageable);
 
     // All SUBMITTED timesheets pending approval

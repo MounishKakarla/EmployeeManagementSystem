@@ -71,13 +71,17 @@ public class TimesheetController {
     }
 
     /**
-     * GET /ems/timesheets/my
-     * Paginated own timesheet history.
+     * GET /ems/timesheets/my?from=2025-01-01&to=2025-03-31
+     * Paginated own timesheet history with optional date range.
      */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
     @GetMapping("/my")
-    public Page<TimesheetDTO> getMyTimesheets(Authentication auth, Pageable pageable) {
-        return timesheetService.getMyTimesheets(auth.getName(), pageable);
+    public Page<TimesheetDTO> getMyTimesheets(
+            Authentication auth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            Pageable pageable) {
+        return timesheetService.getMyTimesheets(auth.getName(), from, to, pageable);
     }
 
     // ── Admin / Manager ────────────────────────────────────────────────────────
@@ -93,16 +97,18 @@ public class TimesheetController {
     }
 
     /**
-     * GET /ems/timesheets/team?empId=TT0001&status=SUBMITTED
-     * Full team timesheet view with optional filters.
+     * GET /ems/timesheets/team?empId=TT0001&status=SUBMITTED&from=2025-01-01&to=2025-03-31
+     * Full team timesheet view with optional filters and date range.
      */
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @GetMapping("/team")
     public Page<TimesheetDTO> getTeam(
             @RequestParam(required = false) String empId,
             @RequestParam(required = false) TimesheetStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             Pageable pageable) {
-        return timesheetService.getTeamTimesheets(empId, status, pageable);
+        return timesheetService.getTeamTimesheets(empId, status, from, to, pageable);
     }
 
     /**

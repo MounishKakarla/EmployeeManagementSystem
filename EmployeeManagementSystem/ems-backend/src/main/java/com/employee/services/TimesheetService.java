@@ -16,13 +16,13 @@ public interface TimesheetService {
     TimesheetDTO submitWeek(String empId, LocalDate weekStartDate);
     List<TimesheetDTO> getCurrentWeek(String empId);
     List<TimesheetDTO> getWeek(String empId, LocalDate weekStartDate);
-    Page<TimesheetDTO> getMyTimesheets(String empId, Pageable pageable);
+    Page<TimesheetDTO> getMyTimesheets(String empId, LocalDate from, LocalDate to, Pageable pageable);
 
     void deleteEntry(String empId, Long id);
 
     // ── Admin / Manager ────────────────────────────────────────────────────────
     TimesheetDTO reviewEntry(Long id, TimesheetStatus action,
                              String reviewedBy, String reviewNotes);
-    Page<TimesheetDTO> getTeamTimesheets(String empId, TimesheetStatus status, Pageable pageable);
+    Page<TimesheetDTO> getTeamTimesheets(String empId, TimesheetStatus status, LocalDate from, LocalDate to, Pageable pageable);
     Page<TimesheetDTO> getPendingTimesheets(Pageable pageable);
 }

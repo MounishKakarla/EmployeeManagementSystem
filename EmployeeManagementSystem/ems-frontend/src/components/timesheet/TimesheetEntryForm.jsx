@@ -9,9 +9,6 @@ import toast from 'react-hot-toast'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-// Only Mon–Fri are selectable working days
-const WORKING_DAYS = DAYS.slice(0, 5)
-const WORKING_DAY_LABELS = DAY_LABELS.slice(0, 5)
 
 function getWeekDates(weekStartDate) {
   return DAYS.map((_, idx) => {
@@ -25,11 +22,11 @@ function formatDateLabel(date) {
   return `${date.getDate()} ${date.toLocaleString('en-US', { month: 'short' })}`
 }
 
-const emptyRow = (defaultDay = 'monday') => ({
+const emptyRow = () => ({
   _key: Math.random().toString(36).slice(2),
   project: '',
   taskDescription: '',
-  day: defaultDay,
+  day: 'monday',
   hours: '',
 })
 
@@ -112,13 +109,25 @@ export default function TimesheetEntryForm({
     onError: (err) => toast.error(parseApiError(err, 'Save failed')),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => timesheetAPI.deleteEntry(id),
+    onSuccess: () => { toast.success('Entry deleted'); onSaved?.() },
+    onError: (err) => toast.error(parseApiError(err, 'Delete failed')),
+  })
+
   const updateRow = (key, field, value) =>
     setRows(prev => prev.map(r => r._key === key ? { ...r, [field]: value } : r))
 
   const addRow = () => setRows(prev => [...prev, emptyRow()])
-  const removeRow = (key) => setRows(prev => prev.filter(r => r._key !== key))
 
-  const validRows = rows.filter(r => r.project.trim() && r.taskDescription.trim() && r.hours !== '' && parseFloat(r.hours) > 0)
+  const removeRow = (key) => {
+    const row = rows.find(r => r._key === key)
+    if (row?.id) {
+      deleteMutation.mutate(row.id)
+    } else {
+      setRows(prev => prev.filter(r => r._key !== key))
+    }
+  }
 
   // Summary: total hours per day across all rows
   const dayTotals = DAYS.map(day =>
@@ -185,9 +194,9 @@ export default function TimesheetEntryForm({
                     onChange={e => updateRow(row._key, 'day', e.target.value)}
                     style={{ fontSize: 13, padding: '6px 10px', width: '100%', cursor: 'pointer' }}
                   >
-                    {WORKING_DAYS.map((day, idx) => (
+                    {DAYS.map((day, idx) => (
                       <option key={day} value={day}>
-                        {WORKING_DAY_LABELS[idx]} — {formatDateLabel(weekDates[idx])}
+                        {DAY_LABELS[idx]} — {formatDateLabel(weekDates[idx])}
                       </option>
                     ))}
                   </select>
@@ -276,11 +285,10 @@ export default function TimesheetEntryForm({
           <button
             className="btn btn-primary btn-sm"
             onClick={() => {
-              // Check every row — all 3 fields are mandatory
-              const incompleteRows = rows.filter(r =>
+              const incomplete = rows.filter(r =>
                 !r.project.trim() || !r.taskDescription.trim() || !r.hours || parseFloat(r.hours) <= 0
               )
-              if (incompleteRows.length > 0) {
+              if (incomplete.length > 0) {
                 toast.error('All fields are required: Project, Task Description, and Hours (> 0)')
                 return
               }

@@ -19,12 +19,14 @@ interface Props {
   minDate?: string                   // 'YYYY-MM-DD' — dates before this are disabled
   rangeStart?: string                // highlight range from rangeStart to hovered/selected
   title?: string
+  disableWeekends?: boolean          // default true; pass false for non-leave pickers
 }
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 
 export default function CalendarPicker({
   visible, onClose, onSelect, selectedDate, minDate, rangeStart, title = 'Select Date',
+  disableWeekends = true,
 }: Props) {
   const Colors = useThemeColors()
 
@@ -113,7 +115,7 @@ export default function CalendarPicker({
               const isSelected = selDay ? cellDay.isSame(selDay, 'day') : false
               const dow = cellDay.day() // 0=Sun, 6=Sat
               const isWeekend = dow === 0 || dow === 6
-              const isDisabled = isWeekend || (minDay ? cellDay.isBefore(minDay, 'day') : false)
+              const isDisabled = (disableWeekends && isWeekend) || (minDay ? cellDay.isBefore(minDay, 'day') : false)
               const inRange = rangeStartDay && selDay
                 ? (cellDay.isAfter(rangeStartDay, 'day') && cellDay.isBefore(selDay, 'day'))
                   || (cellDay.isAfter(selDay, 'day') && cellDay.isBefore(rangeStartDay, 'day'))
@@ -138,10 +140,10 @@ export default function CalendarPicker({
                 >
                   <Text style={[
                     styles.dayText,
-                    { color: isWeekend ? Colors.danger : (isDisabled ? Colors.textMuted : Colors.textPrimary) },
+                    { color: (disableWeekends && isWeekend) ? Colors.danger : (isDisabled ? Colors.textMuted : Colors.textPrimary) },
                     isToday && !isSelected && { color: Colors.accent, fontWeight: FontWeight.bold },
                     isSelected && { color: '#fff', fontWeight: FontWeight.bold },
-                    isDisabled && { opacity: isWeekend ? 0.4 : 0.35 },
+                    isDisabled && { opacity: (disableWeekends && isWeekend) ? 0.4 : 0.35 },
                   ]}>
                     {day}
                   </Text>
@@ -153,8 +155,8 @@ export default function CalendarPicker({
             })}
           </View>
 
-          {/* Today shortcut — only shown when today is a working weekday */}
-          {today.day() !== 0 && today.day() !== 6 && (!minDate || !dayjs(minDate).isAfter(today, 'day')) && (
+          {/* Today shortcut */}
+          {(disableWeekends ? (today.day() !== 0 && today.day() !== 6) : true) && (!minDate || !dayjs(minDate).isAfter(today, 'day')) && (
             <TouchableOpacity
               style={[styles.todayBtn, { borderColor: Colors.border }]}
               onPress={() => {

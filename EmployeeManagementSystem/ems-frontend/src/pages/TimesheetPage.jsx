@@ -2,13 +2,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
-import { timesheetAPI } from '../api'
+import { timesheetAPI, leaveAPI } from '../api'
 import { parseApiError } from '../utils/errorUtils'
 import { formatDate } from '../utils/dateUtils'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import Pagination from '../components/ui/Pagination'
 import TimesheetEntryForm from '../components/timesheet/TimesheetEntryForm'
-import { Timer, Users, CheckSquare, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Timer, Users, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import '../styles/timesheet.css'
 
@@ -37,12 +37,16 @@ export default function TimesheetPage() {
   const [teamPage,    setTeamPage]    = useState(0)
   const [teamEmpId,   setTeamEmpId]   = useState('')
   const [teamStatus,  setTeamStatus]  = useState('')
+  const [myFrom,      setMyFrom]      = useState('')
+  const [myTo,        setMyTo]        = useState('')
+  const [teamFrom,    setTeamFrom]    = useState('')
+  const [teamTo,      setTeamTo]      = useState('')
 
   // Selected date to determine the week (defaults to today)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
-  // ── Week data fetching ──────────────────────────────────────────────────────
-  const { data: weekData, refetch: refetchWeek } = useQuery({
+  // ── Week data ──────────────────────────────────────────────────────────────
+  const { data: weekData } = useQuery({
     queryKey: ['timesheet', 'week', selectedDate],
     queryFn: () => timesheetAPI.getWeek(selectedDate),
   })
@@ -50,17 +54,30 @@ export default function TimesheetPage() {
 
   // ── My history ─────────────────────────────────────────────────────────────
   const { data: myData, isLoading: myLoading } = useQuery({
-    queryKey: ['timesheet', 'my', myPage],
-    queryFn: () => timesheetAPI.getMyTimesheets({ page: myPage, size: PAGE_SIZE }),
+    queryKey: ['timesheet', 'my', myPage, myFrom, myTo],
+    queryFn: () => timesheetAPI.getMyTimesheets({
+      page: myPage, size: PAGE_SIZE,
+      ...(myFrom && { from: myFrom }),
+      ...(myTo   && { to: myTo }),
+    }),
     enabled: activeTab === 'my',
   })
 
   // ── Team ───────────────────────────────────────────────────────────────────
   const { data: teamData, isLoading: teamLoading } = useQuery({
-    queryKey: ['timesheet', 'team', teamPage, teamEmpId, teamStatus],
-    queryFn: () => timesheetAPI.getTeam(teamEmpId || undefined, teamStatus || undefined,
-                                        { page: teamPage, size: PAGE_SIZE }),
+    queryKey: ['timesheet', 'team', teamPage, teamEmpId, teamStatus, teamFrom, teamTo],
+    queryFn: () => timesheetAPI.getTeam(teamEmpId || undefined, teamStatus || undefined, {
+      page: teamPage, size: PAGE_SIZE,
+      ...(teamFrom && { from: teamFrom }),
+      ...(teamTo   && { to: teamTo }),
+    }),
     enabled: activeTab === 'team' && canManage,
+  })
+
+  // ── Approved leaves for weekly target ──────────────────────────────────────
+  const { data: leaveData } = useQuery({
+    queryKey: ['leaves', 'approved-all'],
+    queryFn: () => leaveAPI.getMyLeaves({ status: 'APPROVED', size: 100 }),
   })
 
   // ── Mutations ──────────────────────────────────────────────────────────────
@@ -99,14 +116,33 @@ export default function TimesheetPage() {
     setSelectedDate(d.toISOString().split('T')[0])
   }
 
-  const weekSubmitted = currentWeekEntries.some(
-    e => e.status === 'SUBMITTED' || e.status === 'APPROVED')
+  const weekApproved = currentWeekEntries.some(e => e.status === 'APPROVED')
+  const weekInReview = !weekApproved && currentWeekEntries.some(e => e.status === 'SUBMITTED')
+
+  // ── Weekly hours progress ──────────────────────────────────────────────────
+  const totalH = currentWeekEntries.reduce((s, e) => s + (
+    (e.mondayHours||0)+(e.tuesdayHours||0)+(e.wednesdayHours||0)+
+    (e.thursdayHours||0)+(e.fridayHours||0)+(e.saturdayHours||0)+(e.sundayHours||0)
+  ), 0)
+
+  const myLeaves = leaveData?.data?.content || []
+  const leaveWorkdays = myLeaves.reduce((count, leave) => {
+    for (let d = 0; d < 5; d++) {
+      const wd = new Date(new Date(weekStartDate).getTime() + d * 24 * 60 * 60 * 1000)
+                   .toISOString().split('T')[0]
+      if (leave.startDate && leave.endDate && wd >= leave.startDate && wd <= leave.endDate) count++
+    }
+    return count
+  }, 0)
+  const targetH = Math.max(8, (5 - leaveWorkdays) * 8)
+  const pct     = Math.min(100, (totalH / targetH) * 100)
+  const barColor = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : 'var(--warning)'
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManage)
 
   return (
     <div className="timesheet-page">
-      {/* ── Header ───────────────────────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -114,7 +150,6 @@ export default function TimesheetPage() {
           </h1>
           <p className="page-subtitle">Log your weekly hours and track approvals</p>
         </div>
-        {/* Status pill — shows current week submission state */}
         {currentWeekEntries.length > 0 && (() => {
           const s = currentWeekEntries[0].status || 'DRAFT'
           return (
@@ -125,7 +160,7 @@ export default function TimesheetPage() {
         })()}
       </div>
 
-      {/* ── Weekly banner ─────────────────────────────────────────────────────── */}
+      {/* ── Weekly banner ─────────────────────────────────────────────────── */}
       <div className="timesheet-week-banner" style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 10, marginRight: 20 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => changeWeek(-1)} title="Previous Week">
@@ -138,43 +173,57 @@ export default function TimesheetPage() {
             <ChevronRight size={16} />
           </button>
         </div>
-        
         <Timer size={15} color="var(--accent)" />
         <span className="timesheet-week-range" style={{ marginLeft: 8 }}>
           Week: {formatDate(weekStartDate)} →{' '}
           {formatDate(new Date(new Date(weekStartDate).getTime() + 6*24*60*60*1000).toISOString().split('T')[0])}
         </span>
-        <span className="timesheet-week-hours">
-          {currentWeekEntries.reduce((s, e) => s + (
-            (e.mondayHours||0)+(e.tuesdayHours||0)+(e.wednesdayHours||0)+
-            (e.thursdayHours||0)+(e.fridayHours||0)+(e.saturdayHours||0)+(e.sundayHours||0)
-          ), 0).toFixed(1)}h total
-        </span>
+        <span className="timesheet-week-hours">{totalH.toFixed(1)}h total</span>
       </div>
 
-      {/* ── Current week entry form ───────────────────────────────────────────── */}
+      {/* ── Weekly progress bar ───────────────────────────────────────────── */}
+      <div style={{ marginBottom: 16, padding: '0 0 4px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Weekly Progress
+            {leaveWorkdays > 0 && (
+              <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--warning)' }}>
+                ({leaveWorkdays} leave day{leaveWorkdays > 1 ? 's' : ''} · target adjusted)
+              </span>
+            )}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: barColor }}>
+            {totalH.toFixed(1)}h / {targetH}h
+          </span>
+        </div>
+        <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', width: `${pct}%`, borderRadius: 4,
+            background: barColor, transition: 'width 0.4s ease',
+          }} />
+        </div>
+      </div>
+
+      {/* ── Current week entry form ─────────────────────────────────────────── */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 className="card-title">
-             Week of {formatDate(weekStartDate)}
-          </h3>
-          {!weekSubmitted && (
+          <h3 className="card-title">Week of {formatDate(weekStartDate)}</h3>
+          {!weekInReview && !weekApproved && (
             <button className="btn btn-primary btn-sm"
               onClick={() => submitMutation.mutate(weekStartDate)}
               disabled={submitMutation.isPending || currentWeekEntries.length === 0}>
               {submitMutation.isPending
                 ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Submitting…</>
-                : <><CheckSquare size={14} /> Submit Week</>}
+                : <><CheckSquare size={14} /> Submit for Review</>}
             </button>
           )}
-          {weekSubmitted && (
-            <span className="badge badge-success">Week Submitted</span>
-          )}
+          {weekInReview && <span className="badge badge-warning">Under Review</span>}
+          {weekApproved && <span className="badge badge-success">Approved</span>}
         </div>
         <TimesheetEntryForm
           weekStartDate={weekStartDate}
           existingEntries={currentWeekEntries}
-          disabled={weekSubmitted}
+          disabled={weekApproved}
           onSaved={() => qc.invalidateQueries({ queryKey: ['timesheet'] })}
         />
       </div>
@@ -189,14 +238,34 @@ export default function TimesheetPage() {
         ))}
       </div>
 
-      {/* ── My History ───────────────────────────────────────────────────────── */}
+      {/* ── My History ─────────────────────────────────────────────────────── */}
       {activeTab === 'my' && (
-        <TimesheetTable records={myHistory} isLoading={myLoading}
-          showEmployee={false}
-          page={myPage} totalPages={myTotalPages} onPageChange={setMyPage} />
+        <div>
+          <div className="card card-sm" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label className="form-label">From</label>
+                <input type="date" className="form-input" value={myFrom} style={{ width: 160 }}
+                  onChange={e => { setMyFrom(e.target.value); setMyPage(0) }} />
+              </div>
+              <div>
+                <label className="form-label">To</label>
+                <input type="date" className="form-input" value={myTo} style={{ width: 160 }}
+                  onChange={e => { setMyTo(e.target.value); setMyPage(0) }} />
+              </div>
+              {(myFrom || myTo) && (
+                <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-end' }}
+                  onClick={() => { setMyFrom(''); setMyTo(''); setMyPage(0) }}>Clear</button>
+              )}
+            </div>
+          </div>
+          <TimesheetTable records={myHistory} isLoading={myLoading}
+            showEmployee={false}
+            page={myPage} totalPages={myTotalPages} onPageChange={setMyPage} />
+        </div>
       )}
 
-      {/* ── Team Review ───────────────────────────────────────────────────────── */}
+      {/* ── Team Review ────────────────────────────────────────────────────── */}
       {activeTab === 'team' && canManage && (
         <div>
           <div className="card card-sm" style={{ marginBottom: 16 }}>
@@ -216,9 +285,21 @@ export default function TimesheetPage() {
                     <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              {(teamEmpId || teamStatus) && (
+              <div>
+                <label className="form-label">From</label>
+                <input type="date" className="form-input" value={teamFrom} style={{ width: 160 }}
+                  onChange={e => { setTeamFrom(e.target.value); setTeamPage(0) }} />
+              </div>
+              <div>
+                <label className="form-label">To</label>
+                <input type="date" className="form-input" value={teamTo} style={{ width: 160 }}
+                  onChange={e => { setTeamTo(e.target.value); setTeamPage(0) }} />
+              </div>
+              {(teamEmpId || teamStatus || teamFrom || teamTo) && (
                 <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-end' }}
-                  onClick={() => { setTeamEmpId(''); setTeamStatus(''); }}>Clear</button>
+                  onClick={() => { setTeamEmpId(''); setTeamStatus(''); setTeamFrom(''); setTeamTo(''); setTeamPage(0) }}>
+                  Clear
+                </button>
               )}
             </div>
           </div>
@@ -226,7 +307,6 @@ export default function TimesheetPage() {
             showEmployee={true}
             actions={(r) => {
               if (r.status !== 'SUBMITTED') return null
-              // Self-approval prevention: cannot review your own timesheet
               const isSelf = r.empId === user?.empId
               if (isSelf) return (
                 <span style={{ fontSize: 11, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 4 }}>

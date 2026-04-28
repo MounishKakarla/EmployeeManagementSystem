@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
-import { timesheetAPI } from '../../src/api'
+import { timesheetAPI, leaveAPI } from '../../src/api'
 import { useAuth } from '../../src/context/AuthContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
+import CalendarPicker from '../../src/components/CalendarPicker'
 import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
 import { useState } from 'react'
@@ -51,30 +52,56 @@ export default function TimesheetScreen() {
   const [projectName, setProjectName] = useState('')
   const [hours, setHours]             = useState('')
   const [taskDesc, setTaskDesc]       = useState('')
-  // Default to current weekday; if today is Sat/Sun default to Friday (idx 4)
   const _todayIdx = dayjs().day() === 0 ? 6 : dayjs().day() - 1
-  const [selectedDay, setSelectedDay] = useState(DAYS[_todayIdx >= 5 ? 4 : _todayIdx].key)
-  const [editingId, setEditingId]     = useState<number | null>(null)
+  const [selectedDay, setSelectedDay] = useState(DAYS[_todayIdx].key)
+  const [editingId, setEditingId]         = useState<number | null>(null)
   const [saveAttempted, setSaveAttempted] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [teamFilter, setTeamFilter]   = useState('')
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [tsConfirm, setTsConfirm]       = useState<ConfirmTS>(null)
+
+  // Date range state for My History
+  const [myFrom, setMyFrom] = useState('')
+  const [myTo,   setMyTo]   = useState('')
+  const [showMyFrom, setShowMyFrom] = useState(false)
+  const [showMyTo,   setShowMyTo]   = useState(false)
+
+  // Date range state for Team
+  const [teamFrom, setTeamFrom] = useState('')
+  const [teamTo,   setTeamTo]   = useState('')
+  const [showTeamFrom, setShowTeamFrom] = useState(false)
+  const [showTeamTo,   setShowTeamTo]   = useState(false)
 
   const { data, refetch, isRefetching } = useQuery({
     queryKey: ['timesheet-week', selectedDate],
     queryFn: () => timesheetAPI.getWeek(selectedDate),
   })
 
-  const { data: myData } = useQuery({
-    queryKey: ['my-timesheets'],
-    queryFn: () => timesheetAPI.getMyTimesheets({ page: 0, size: 20 }),
+  const { data: myData, refetch: refetchMyHistory } = useQuery({
+    queryKey: ['my-timesheets', myFrom, myTo],
+    queryFn: () => timesheetAPI.getMyTimesheets({
+      page: 0, size: 30,
+      ...(myFrom && { from: myFrom }),
+      ...(myTo   && { to: myTo }),
+    }),
     enabled: activeTab === 'my',
   })
 
   const { data: teamData, isLoading: teamLoading, refetch: refetchTeam } = useQuery({
-    queryKey: ['team-timesheets', teamFilter],
-    queryFn: () => timesheetAPI.getTeam(undefined, teamFilter || undefined, { page: 0, size: 50 }),
+    queryKey: ['team-timesheets', teamFilter, teamFrom, teamTo],
+    queryFn: () => timesheetAPI.getTeam(undefined, teamFilter || undefined, {
+      page: 0, size: 50,
+      ...(teamFrom && { from: teamFrom }),
+      ...(teamTo   && { to: teamTo }),
+    }),
     enabled: canManage && activeTab === 'team',
+  })
+
+  // Approved leaves for weekly target calculation
+  const { data: leaveData } = useQuery({
+    queryKey: ['leaves-approved-all'],
+    queryFn: () => leaveAPI.getMyLeaves({ status: 'APPROVED', size: 100 }),
   })
 
   const monday = dayjs(selectedDate).startOf('isoWeek')
@@ -129,6 +156,17 @@ export default function TimesheetScreen() {
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Review failed' }),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => timesheetAPI.deleteEntry(id),
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Entry deleted' })
+      setDeleteConfirmId(null)
+      resetForm()
+      refetch()
+    },
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Delete failed' }),
+  })
+
   const handleTsReview = (t: any, action: string) => {
     setTsConfirm({
       id:      t.id,
@@ -164,9 +202,22 @@ export default function TimesheetScreen() {
   const entries   = Array.isArray(data?.data) ? data.data : (data?.data?.entries || [])
   const totalH    = entries.reduce((s: number, e: any) => s + (e.totalHours || 0), 0)
   const weekStatus = entries.length > 0 ? entries[0].status : 'DRAFT'
-  const canSubmit = weekStatus === 'DRAFT' && entries.length > 0
+  const canSubmit = (weekStatus === 'DRAFT' || weekStatus === 'REJECTED') && entries.length > 0
   const myHistory = myData?.data?.content || []
   const teamList  = teamData?.data?.content || []
+
+  // Weekly progress target (adjusted for approved leave)
+  const myLeaves = (leaveData?.data?.content || []) as any[]
+  const leaveWorkdays = myLeaves.reduce((count: number, leave: any) => {
+    for (let d = 0; d < 5; d++) {
+      const wd = dayjs(currentWeekStart).add(d, 'day').format('YYYY-MM-DD')
+      if (leave.startDate && leave.endDate && wd >= leave.startDate && wd <= leave.endDate) count++
+    }
+    return count
+  }, 0)
+  const targetH = Math.max(8, (5 - leaveWorkdays) * 8)
+  const pct     = Math.min(100, (totalH / targetH) * 100)
+  const progressColor = pct >= 100 ? Colors.success : pct >= 60 ? Colors.accent : Colors.warning
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManage)
 
@@ -226,7 +277,22 @@ export default function TimesheetScreen() {
               <Text style={[styles.weekHours, { color: Colors.accent }]}>{totalH.toFixed(1)}h</Text>
             </View>
 
-            {weekStatus !== 'SUBMITTED' && weekStatus !== 'APPROVED' && (
+            {/* ── Weekly Progress Bar ─────────────────────────────────── */}
+            <View style={[styles.progressCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+              <View style={styles.progressHeader}>
+                <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>
+                  Weekly Progress{leaveWorkdays > 0 ? ` · ${leaveWorkdays} leave day${leaveWorkdays > 1 ? 's' : ''}` : ''}
+                </Text>
+                <Text style={[styles.progressLabel, { color: progressColor }]}>
+                  {totalH.toFixed(1)}h / {targetH}h
+                </Text>
+              </View>
+              <View style={[styles.progressTrack, { backgroundColor: Colors.bgTertiary }]}>
+                <View style={[styles.progressFill, { width: `${pct}%` as any, backgroundColor: progressColor }]} />
+              </View>
+            </View>
+
+            {weekStatus !== 'APPROVED' && (
               <View style={[styles.card, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                 <Text style={[styles.cardTitle, { color: Colors.textPrimary }]}>Add Entry</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -250,21 +316,18 @@ export default function TimesheetScreen() {
                     {DAYS.map((d, idx) => {
                       const pillDate = dayjs(currentWeekStart).add(idx, 'day')
                       const isActive = selectedDay === d.key
-                      const isWeekend = idx === 5 || idx === 6
                       return (
                         <TouchableOpacity
                           key={d.key}
-                          disabled={isWeekend}
                           style={[
                             styles.dayPill,
                             { backgroundColor: Colors.bgTertiary, borderColor: Colors.border },
                             isActive && { backgroundColor: Colors.accentLight, borderColor: Colors.accent },
-                            isWeekend && { opacity: 0.35 },
                           ]}
                           onPress={() => setSelectedDay(d.key)}
                         >
-                          <Text style={[styles.dayPillText, { color: isWeekend ? Colors.danger : Colors.textSecondary }, isActive && { color: Colors.accent, fontWeight: FontWeight.bold }]}>{d.label}</Text>
-                          <Text style={{ fontSize: 8, color: isActive ? Colors.accent : (isWeekend ? Colors.danger : Colors.textMuted), textAlign: 'center' }}>{pillDate.format('D MMM')}</Text>
+                          <Text style={[styles.dayPillText, { color: Colors.textSecondary }, isActive && { color: Colors.accent, fontWeight: FontWeight.bold }]}>{d.label}</Text>
+                          <Text style={{ fontSize: 8, color: isActive ? Colors.accent : Colors.textMuted, textAlign: 'center' }}>{pillDate.format('D MMM')}</Text>
                         </TouchableOpacity>
                       )
                     })}
@@ -297,27 +360,34 @@ export default function TimesheetScreen() {
             {entries.length === 0
               ? <Text style={[styles.empty, { color: Colors.textMuted }]}>No entries yet this week.</Text>
               : entries.map((e: any, i: number) => (
-                  <TouchableOpacity key={e.id || i} style={[styles.entryRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }, editingId === e.id && { borderColor: Colors.accent, backgroundColor: Colors.accentLight }]} onPress={() => handleEdit(e)} activeOpacity={0.7}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.entryProject, { color: Colors.textPrimary }]}>{e.project}</Text>
-                        {editingId === e.id && <Ionicons name="pencil" size={12} color={Colors.accent} />}
+                  <View key={e.id || i} style={[styles.entryRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }, editingId === e.id && { borderColor: Colors.accent, backgroundColor: Colors.accentLight }]}>
+                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => weekStatus !== 'APPROVED' && handleEdit(e)} activeOpacity={0.7}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.entryProject, { color: Colors.textPrimary }]}>{e.project}</Text>
+                          {editingId === e.id && <Ionicons name="pencil" size={12} color={Colors.accent} />}
+                        </View>
+                        <Text style={[styles.entryTask, { color: Colors.textSecondary }]} numberOfLines={1}>{e.taskDescription || 'No description'}</Text>
+                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                          {DAYS.map(d => {
+                            const val = e[d.key] || 0
+                            if (val === 0) return null
+                            return (
+                              <View key={d.key} style={[styles.dayMiniBadge, { backgroundColor: Colors.bgTertiary }]}>
+                                <Text style={[styles.dayMiniText, { color: Colors.textMuted }]}>{d.label}: {val}h</Text>
+                              </View>
+                            )
+                          })}
+                        </View>
                       </View>
-                      <Text style={[styles.entryTask, { color: Colors.textSecondary }]} numberOfLines={1}>{e.taskDescription || 'No description'}</Text>
-                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                        {DAYS.map(d => {
-                          const val = e[d.key] || 0
-                          if (val === 0) return null
-                          return (
-                            <View key={d.key} style={[styles.dayMiniBadge, { backgroundColor: Colors.bgTertiary }]}>
-                              <Text style={[styles.dayMiniText, { color: Colors.textMuted }]}>{d.label}: {val}h</Text>
-                            </View>
-                          )
-                        })}
-                      </View>
-                    </View>
-                    <Text style={[styles.entryHours, { color: Colors.accent }]}>{e.totalHours}h</Text>
-                  </TouchableOpacity>
+                      <Text style={[styles.entryHours, { color: Colors.accent }]}>{e.totalHours}h</Text>
+                    </TouchableOpacity>
+                    {weekStatus !== 'APPROVED' && (
+                      <TouchableOpacity onPress={() => setDeleteConfirmId(e.id)} style={{ padding: 8, marginLeft: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="trash-outline" size={16} color={Colors.danger} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 ))
             }
 
@@ -328,10 +398,44 @@ export default function TimesheetScreen() {
               </TouchableOpacity>
             )}
 
-            {myHistory.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { color: Colors.textMuted }]}>Past Timesheets</Text>
-                {myHistory.map((t: any) => {
+            {/* ── Past Timesheets with date filter ──────────────────── */}
+            <Text style={[styles.sectionTitle, { color: Colors.textMuted }]}>Past Timesheets</Text>
+
+            {/* Date range filter for My History */}
+            <View style={[styles.dateFilterRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+              <TouchableOpacity
+                style={[styles.dateFilterBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                onPress={() => setShowMyFrom(true)}
+              >
+                <Ionicons name="calendar-outline" size={13} color={Colors.textMuted} />
+                <Text style={{ fontSize: FontSize.xs, color: myFrom ? Colors.textPrimary : Colors.textMuted }}>
+                  {myFrom ? dayjs(myFrom).format('DD MMM YY') : 'From'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={[{ fontSize: FontSize.xs, color: Colors.textMuted }]}>→</Text>
+              <TouchableOpacity
+                style={[styles.dateFilterBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                onPress={() => setShowMyTo(true)}
+              >
+                <Ionicons name="calendar-outline" size={13} color={Colors.textMuted} />
+                <Text style={{ fontSize: FontSize.xs, color: myTo ? Colors.textPrimary : Colors.textMuted }}>
+                  {myTo ? dayjs(myTo).format('DD MMM YY') : 'To'}
+                </Text>
+              </TouchableOpacity>
+              {(myFrom || myTo) && (
+                <TouchableOpacity
+                  style={[styles.dateFilterBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                  onPress={() => { setMyFrom(''); setMyTo('') }}
+                >
+                  <Ionicons name="close-circle-outline" size={13} color={Colors.textMuted} />
+                  <Text style={{ fontSize: FontSize.xs, color: Colors.textMuted }}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {myHistory.length === 0
+              ? <Text style={[styles.empty, { color: Colors.textMuted }]}>No past timesheets found.</Text>
+              : myHistory.map((t: any) => {
                   const sc = getStatusStyle(t.status, Colors)
                   return (
                     <View key={t.id} style={[styles.historyRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
@@ -345,21 +449,53 @@ export default function TimesheetScreen() {
                       </View>
                     </View>
                   )
-                })}
-              </>
-            )}
+                })
+            }
           </>
         )}
 
         {activeTab === 'team' && canManage && (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.md, gap: 6, marginBottom: Spacing.md }}>
+            {/* Status filter pills + date range */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.md, gap: 6, marginBottom: Spacing.sm }}>
               {['', 'SUBMITTED', 'APPROVED', 'REJECTED'].map(s => (
                 <TouchableOpacity key={s} style={[styles.filterPill, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }, teamFilter === s && { borderColor: Colors.accent, backgroundColor: Colors.accentLight }]} onPress={() => setTeamFilter(s)}>
                   <Text style={[styles.filterPillText, { color: Colors.textSecondary }, teamFilter === s && { color: Colors.accent }]}>{s || 'All'}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* Date range filter for Team */}
+            <View style={[styles.dateFilterRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+              <TouchableOpacity
+                style={[styles.dateFilterBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                onPress={() => setShowTeamFrom(true)}
+              >
+                <Ionicons name="calendar-outline" size={13} color={Colors.textMuted} />
+                <Text style={{ fontSize: FontSize.xs, color: teamFrom ? Colors.textPrimary : Colors.textMuted }}>
+                  {teamFrom ? dayjs(teamFrom).format('DD MMM YY') : 'From'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={[{ fontSize: FontSize.xs, color: Colors.textMuted }]}>→</Text>
+              <TouchableOpacity
+                style={[styles.dateFilterBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                onPress={() => setShowTeamTo(true)}
+              >
+                <Ionicons name="calendar-outline" size={13} color={Colors.textMuted} />
+                <Text style={{ fontSize: FontSize.xs, color: teamTo ? Colors.textPrimary : Colors.textMuted }}>
+                  {teamTo ? dayjs(teamTo).format('DD MMM YY') : 'To'}
+                </Text>
+              </TouchableOpacity>
+              {(teamFrom || teamTo) && (
+                <TouchableOpacity
+                  style={[styles.dateFilterBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}
+                  onPress={() => { setTeamFrom(''); setTeamTo('') }}
+                >
+                  <Ionicons name="close-circle-outline" size={13} color={Colors.textMuted} />
+                  <Text style={{ fontSize: FontSize.xs, color: Colors.textMuted }}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {teamLoading ? (
               <ActivityIndicator color={Colors.accent} style={{ padding: 40 }} />
@@ -423,7 +559,64 @@ export default function TimesheetScreen() {
           </>
         )}
       </ScrollView>
-      {/* ── Timesheet Review Confirmation Modal ───────────────────────────── */}
+
+      {/* ── Calendar pickers ─────────────────────────────────────────── */}
+      <CalendarPicker
+        visible={showMyFrom} title="History From"
+        onClose={() => setShowMyFrom(false)}
+        onSelect={d => { setMyFrom(d); setShowMyFrom(false) }}
+        selectedDate={myFrom || undefined}
+        disableWeekends={false}
+      />
+      <CalendarPicker
+        visible={showMyTo} title="History To"
+        onClose={() => setShowMyTo(false)}
+        onSelect={d => { setMyTo(d); setShowMyTo(false) }}
+        selectedDate={myTo || undefined}
+        minDate={myFrom || undefined}
+        disableWeekends={false}
+      />
+      <CalendarPicker
+        visible={showTeamFrom} title="Team From"
+        onClose={() => setShowTeamFrom(false)}
+        onSelect={d => { setTeamFrom(d); setShowTeamFrom(false) }}
+        selectedDate={teamFrom || undefined}
+        disableWeekends={false}
+      />
+      <CalendarPicker
+        visible={showTeamTo} title="Team To"
+        onClose={() => setShowTeamTo(false)}
+        onSelect={d => { setTeamTo(d); setShowTeamTo(false) }}
+        selectedDate={teamTo || undefined}
+        minDate={teamFrom || undefined}
+        disableWeekends={false}
+      />
+
+      {/* ── Delete Confirmation Modal ─────────────────────────────────── */}
+      <Modal transparent animationType="fade" visible={deleteConfirmId !== null} onRequestClose={() => setDeleteConfirmId(null)}>
+        <View style={styles.overlayBg}>
+          <View style={[styles.confirmCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+            <View style={[styles.confirmIcon, { backgroundColor: Colors.dangerLight }]}>
+              <Ionicons name="trash-outline" size={32} color={Colors.danger} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: Colors.textPrimary }]}>Delete Entry?</Text>
+            <Text style={[{ fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginBottom: Spacing.sm }]}>This entry will be permanently removed.</Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, borderWidth: 1 }]} onPress={() => setDeleteConfirmId(null)}>
+                <Text style={[styles.confirmBtnText, { color: Colors.textPrimary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.danger, opacity: deleteMutation.isPending ? 0.6 : 1 }]} onPress={() => deleteConfirmId && deleteMutation.mutate(deleteConfirmId)} disabled={deleteMutation.isPending}>
+                {deleteMutation.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <><Ionicons name="trash-outline" size={16} color="#fff" /><Text style={[styles.confirmBtnText, { color: '#fff' }]}>Delete</Text></>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Timesheet Review Confirmation Modal ──────────────────────── */}
       <Modal transparent animationType="fade" visible={!!tsConfirm} onRequestClose={() => setTsConfirm(null)}>
         <View style={styles.overlayBg}>
           <View style={[styles.confirmCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
@@ -474,9 +667,17 @@ const styles = StyleSheet.create({
   tabRow:       { flexDirection: 'row', marginHorizontal: Spacing.md, gap: 4, borderBottomWidth: 1, marginBottom: Spacing.sm },
   tab:          { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabText:      { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  weekBanner:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, marginBottom: Spacing.md },
+  weekBanner:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, marginBottom: Spacing.sm },
   weekText:     { flex: 1, fontSize: FontSize.sm },
   weekHours:    { fontSize: FontSize.md, fontWeight: FontWeight.bold },
+
+  // Progress bar
+  progressCard:   { marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, marginBottom: Spacing.md },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  progressLabel:  { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  progressTrack:  { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill:   { height: '100%', borderRadius: 4 },
+
   card:         { borderRadius: Radius.md, padding: Spacing.md, marginHorizontal: Spacing.md, borderWidth: 1, marginBottom: Spacing.md, gap: Spacing.sm },
   cardTitle:    { fontSize: FontSize.md, fontWeight: FontWeight.bold, marginBottom: 4 },
   fieldLabel:   { fontSize: FontSize.xs, fontWeight: FontWeight.bold, textTransform: 'uppercase', letterSpacing: 0.8 },
@@ -523,6 +724,10 @@ const styles = StyleSheet.create({
   weekNavBtn:       { padding: 8 },
   weekDisplay:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   weekDisplayText:  { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+
+  // Date range filter
+  dateFilterRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, marginBottom: Spacing.sm, padding: Spacing.sm, borderRadius: Radius.sm, borderWidth: 1 },
+  dateFilterBtn:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: Radius.sm, borderWidth: 1 },
 
   // ── Confirm modal ─────────────────────────────────────────────────────────
   overlayBg:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },

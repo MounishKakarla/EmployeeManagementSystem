@@ -178,6 +178,7 @@ export const timesheetAPI = {
   getPending:      (params)                    => api.get('/ems/timesheets/pending', { params }),
   getTeam:         (empId, status, params)     => api.get('/ems/timesheets/team', { params: { empId, status, ...params } }),
   review:          (id, action, notes)         => api.put(`/ems/timesheets/${id}/review`, { reviewNotes: notes }, { params: { action } }),
+  deleteEntry:     (id)                        => api.delete(`/ems/timesheets/${id}`),
 }
 
 // ── Holiday Calendar APIs ──────────────────────────────────────────────────────

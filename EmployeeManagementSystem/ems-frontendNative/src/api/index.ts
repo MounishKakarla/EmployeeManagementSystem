@@ -79,6 +79,7 @@ export const timesheetAPI = {
                      client.get('/ems/timesheets/team', { params: { empId, status, ...params } }),
   review:          (id: number, action: string, notes?: string) =>
                      client.put(`/ems/timesheets/${id}/review`, { reviewNotes: notes }, { params: { action } }),
+  deleteEntry:     (id: number) => client.delete(`/ems/timesheets/${id}`),
 }
 
 // ── Holidays ──────────────────────────────────────────────────────────────────
