@@ -61,6 +61,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         if (ts.getStatus() == TimesheetStatus.APPROVED)
             throw new IllegalStateException("Approved timesheets cannot be edited.");
 
+        if (dto.getProject() != null)         ts.setProject(dto.getProject());
         if (dto.getTaskDescription() != null) ts.setTaskDescription(dto.getTaskDescription());
         if (dto.getStartTime() != null) ts.setStartTime(dto.getStartTime());
         if (dto.getEndTime()   != null) ts.setEndTime(dto.getEndTime());

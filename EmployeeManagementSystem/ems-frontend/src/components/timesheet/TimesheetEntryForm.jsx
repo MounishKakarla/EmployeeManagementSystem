@@ -114,9 +114,28 @@ export default function TimesheetEntryForm({
   }, [existingEntries, weekStartDate])
 
   const saveMutation = useMutation({
-    mutationFn: async (rows) => {
+    mutationFn: async (rowsToSave) => {
+      // Merge rows that share the same entry id so we send one call per entry
+      // with all days' hours combined (instead of zeroing out other days)
+      const merged = new Map()
+      rowsToSave.forEach(row => {
+        const key = row.id ?? row._key // group by existing id, or _key for new
+        if (row.id && merged.has(row.id)) {
+          // Same existing entry — merge hours into the existing payload
+          const existing = merged.get(row.id)
+          existing[`${row.day}Hours`] = parseFloat(row.hours) || 0
+          // Keep latest project/task (they should be the same for same id)
+          existing.project = row.project
+          existing.taskDescription = row.taskDescription
+          if (row.startTime) existing.startTime = row.startTime
+          if (row.endTime)   existing.endTime   = row.endTime
+        } else {
+          merged.set(row.id ?? row._key, rowToApiPayload(row, weekStartDate))
+        }
+      })
+
       const results = await Promise.allSettled(
-        rows.map(row => timesheetAPI.saveEntry(rowToApiPayload(row, weekStartDate)))
+        Array.from(merged.values()).map(payload => timesheetAPI.saveEntry(payload))
       )
       const failed = results.filter(r => r.status === 'rejected')
       if (failed.length > 0) throw new Error(failed[0].reason?.message || 'Some rows failed')
