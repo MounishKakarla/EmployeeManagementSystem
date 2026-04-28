@@ -47,8 +47,11 @@ export default function LoginScreen() {
       await login(email.trim(), password.trim())
     } catch (err: any) {
       const isNetworkError = !err?.response
+      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')
       const msg = isNetworkError
-        ? 'Cannot reach server. Check you are on the correct WiFi network.'
+        ? isTimeout
+          ? 'Server is waking up — please try again in a moment.'
+          : 'Cannot reach server. Check your internet connection.'
         : err?.response?.data?.message || err?.response?.data?.error || 'Invalid credentials. Please try again.'
       Toast.show({ type: 'error', text1: 'Login Failed', text2: msg })
     } finally {

@@ -60,7 +60,7 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, access.toString())
                 .header(HttpHeaders.SET_COOKIE, refresh.toString())
                 .body(Map.of(
-                    "accessToken", res.getToken(),
+                    "token", res.getToken(),
                     "refreshToken", res.getRefreshToken(),
                     "message", "Login successful"
                 ));
@@ -99,7 +99,7 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, newAccess.toString())
                 .body(Map.of(
-                    "accessToken", res.getToken(),
+                    "token", res.getToken(),
                     "message", "Token refreshed"
                 ));
     }

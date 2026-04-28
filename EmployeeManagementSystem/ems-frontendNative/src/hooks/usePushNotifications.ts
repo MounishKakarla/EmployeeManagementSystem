@@ -1,24 +1,29 @@
 import { useEffect, useRef } from 'react'
 import { Platform } from 'react-native'
-import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 
-// Show notification banner while app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-})
+// Remote push notifications are not available in Expo Go on Android SDK 53+
+const IS_EXPO_GO = Constants.appOwnership === 'expo'
 
-/**
- * Request permission and return the Expo Push Token.
- * Returns null on simulators or if permission is denied.
- */
+let Notifications: any = null
+if (!IS_EXPO_GO) {
+  try {
+    Notifications = require('expo-notifications')
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    })
+  } catch (e) {
+    console.log('Push notifications not available:', e)
+  }
+}
+
 export async function registerForPushNotifications(): Promise<string | null> {
-  if (!Device.isDevice) return null
+  if (IS_EXPO_GO || !Device.isDevice || !Notifications) return null
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -36,7 +41,6 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
   if (finalStatus !== 'granted') return null
 
-  // projectId is required since Expo SDK 46+
   const projectId: string | undefined =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId
 
@@ -44,15 +48,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
   return token
 }
 
-/**
- * Wire up foreground + tap listeners.
- * Call this once from the root layout.
- */
 export function usePushNotifications() {
-  const foregroundSub = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null)
-  const responseSub   = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null)
+  const foregroundSub = useRef<any>(null)
+  const responseSub   = useRef<any>(null)
 
   useEffect(() => {
+    if (IS_EXPO_GO || !Notifications) return
+
     foregroundSub.current = Notifications.addNotificationReceivedListener(() => {})
     responseSub.current   = Notifications.addNotificationResponseReceivedListener(() => {})
 
