@@ -63,9 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string) => {
     queryClient.clear()
     const res = await authAPI.login({ username, password })
-    const { accessToken, refreshToken } = res.data
-    if (!accessToken) throw new Error('No access token in response')
-    await SecureStore.setItemAsync(TOKEN_KEY, accessToken)
+    const { token, refreshToken } = res.data
+    if (!token) throw new Error('No access token in response')
+    await SecureStore.setItemAsync(TOKEN_KEY, token)
     if (refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, refreshToken)
     const meRes = await authAPI.me()
     setUser(meRes.data)

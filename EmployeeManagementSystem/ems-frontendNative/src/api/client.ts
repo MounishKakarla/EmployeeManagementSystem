@@ -54,7 +54,7 @@ client.interceptors.response.use(
       try {
         const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY)
         const res = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken })
-        const newToken = res.data.accessToken
+        const newToken = res.data.token
         await SecureStore.setItemAsync(TOKEN_KEY, newToken)
         queue.forEach(({ resolve }) => resolve())
         queue = []

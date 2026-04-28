@@ -75,7 +75,7 @@ api.interceptors.response.use(
           { refreshToken },
           { headers: { 'Content-Type': 'application/json' } }
         )
-        tokenStore.setTokens(res.data.accessToken, null)
+        tokenStore.setTokens(res.data.token, null)
         processQueue(null)
         return api(original)
       } catch (refreshError) {
@@ -99,7 +99,7 @@ export default api
 export const authAPI = {
   login: async (data) => {
     const res = await api.post('/auth/login', data)
-    tokenStore.setTokens(res.data.accessToken, res.data.refreshToken)
+    tokenStore.setTokens(res.data.token, res.data.refreshToken)
     return res
   },
   logout: async () => {
@@ -112,7 +112,7 @@ export const authAPI = {
       { refreshToken },
       { headers: { 'Content-Type': 'application/json' } }
     )
-    tokenStore.setTokens(res.data.accessToken, null)
+    tokenStore.setTokens(res.data.token, null)
     return res
   },
   me:             ()      => api.get('/auth/me'),
