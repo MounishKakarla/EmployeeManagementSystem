@@ -299,23 +299,37 @@ export default function TimesheetEntryForm({
                   )}
                 </td>
 
-                {/* Hours */}
+                {/* Hours — auto-calculated from times, or manual */}
                 <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="24"
-                    step="0.5"
-                    className="form-input timesheet-hour-input"
-                    placeholder="0"
-                    value={row.hours}
-                    disabled={disabled}
-                    onChange={e => updateRow(row._key, 'hours', e.target.value)}
-                    style={{
-                      width: 80, textAlign: 'center', fontWeight: 700, fontSize: 14,
-                      color: parseFloat(row.hours) > 0 ? 'var(--accent)' : undefined,
-                    }}
-                  />
+                  {(() => {
+                    const isAuto = !disabled && row.startTime && row.endTime
+                    return (
+                      <>
+                        <input
+                          type="number"
+                          min="0"
+                          max="24"
+                          step="0.5"
+                          className="form-input timesheet-hour-input"
+                          placeholder="0"
+                          value={row.hours}
+                          disabled={disabled || isAuto}
+                          onChange={e => updateRow(row._key, 'hours', e.target.value)}
+                          style={{
+                            width: 80, textAlign: 'center', fontWeight: 700, fontSize: 14,
+                            color: parseFloat(row.hours) > 0 ? 'var(--success)' : undefined,
+                            background: isAuto ? 'var(--bg-tertiary)' : undefined,
+                            cursor: isAuto ? 'default' : undefined,
+                          }}
+                        />
+                        {isAuto && (
+                          <div style={{ fontSize: 10, color: 'var(--success)', marginTop: 2, fontWeight: 600 }}>
+                            ⚡ auto
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </td>
 
                 {/* Remove */}

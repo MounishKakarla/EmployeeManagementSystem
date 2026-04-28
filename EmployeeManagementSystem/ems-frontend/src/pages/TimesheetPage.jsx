@@ -140,26 +140,36 @@ export default function TimesheetPage() {
 
   const visibleTabs = TABS.filter(t => !t.adminOnly || canManage)
 
-  // ── PDF Export ─────────────────────────────────────────────────────────────
   const exportWeekPDF = () => {
     const DAYS_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
     const HOURS_KEYS = ['mondayHours','tuesdayHours','wednesdayHours','thursdayHours','fridayHours','saturdayHours','sundayHours']
     const weekEndDate = new Date(new Date(weekStartDate).getTime() + 6*24*60*60*1000).toISOString().split('T')[0]
     const emp = currentWeekEntries[0]
+    const empId = emp?.empId || user?.empId || 'EMP'
+
+    const to12h = (t) => {
+      if (!t) return '—'
+      const [h, m] = t.split(':').map(Number)
+      const period = h >= 12 ? 'PM' : 'AM'
+      return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${period}`
+    }
 
     const rows = []
     currentWeekEntries.forEach(e => {
       HOURS_KEYS.forEach((k, i) => {
         const h = parseFloat(e[k]) || 0
         if (h > 0) {
+          const timeRange = e.startTime && e.endTime
+            ? `${to12h(e.startTime)} – ${to12h(e.endTime)}`
+            : e.startTime ? `From ${to12h(e.startTime)}` : '—'
           rows.push({ day: DAYS_FULL[i], project: e.project, task: e.taskDescription || '—',
-            start: e.startTime || '—', end: e.endTime || '—', hours: h, status: e.status })
+            timeRange, hours: h, status: e.status })
         }
       })
     })
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Timesheet — ${weekStartDate}</title>
+<title>Timesheet — ${empId} — ${weekStartDate}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;padding:36px;color:#111;font-size:13px}
@@ -177,26 +187,26 @@ export default function TimesheetPage() {
   .progress{height:10px;border-radius:5px;background:#e9ecef;overflow:hidden;margin-bottom:4px}
   .progress-fill{height:100%;border-radius:5px;background:#4361ee}
   .footer{margin-top:36px;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:12px}
+  .time-cell{font-size:12px;color:#444;white-space:nowrap}
   @media print{body{padding:16px}button{display:none}}
 </style></head><body>
 <h1>Timesheet Report</h1>
 <div class="meta">
-  <strong>Employee:</strong> ${emp?.employeeName || user?.name || '—'} (${emp?.empId || user?.empId || '—'})<br>
+  <strong>Employee:</strong> ${emp?.employeeName || user?.name || '—'} (${empId})<br>
   <strong>Department:</strong> ${emp?.department || '—'}<br>
   <strong>Week:</strong> ${weekStartDate} to ${weekEndDate}<br>
   <strong>Status:</strong> ${currentWeekEntries[0]?.status || 'DRAFT'}
 </div>
 <table>
-<thead><tr><th>Day</th><th>Project</th><th>Task</th><th>Start</th><th>End</th><th>Hours</th><th>Status</th></tr></thead>
+<thead><tr><th>Day</th><th>Project</th><th>Task Description</th><th>Time</th><th>Hours</th><th>Status</th></tr></thead>
 <tbody>
 ${rows.length === 0
-  ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:20px">No entries</td></tr>'
+  ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px">No entries for this week</td></tr>'
   : rows.map(r => `<tr>
       <td>${r.day}</td>
       <td><strong>${r.project}</strong></td>
       <td>${r.task}</td>
-      <td>${r.start}</td>
-      <td>${r.end}</td>
+      <td class="time-cell">${r.timeRange}</td>
       <td><strong>${r.hours}h</strong></td>
       <td><span class="badge ${r.status}">${r.status}</span></td>
     </tr>`).join('')}
@@ -208,9 +218,21 @@ ${rows.length === 0
 <script>window.onload=()=>setTimeout(()=>window.print(),400)</script>
 </body></html>`
 
-    const win = window.open('', '_blank', 'width=900,height=700')
-    win.document.write(html)
-    win.document.close()
+    const blob = new Blob([html], { type: 'text/html' })
+    const url  = URL.createObjectURL(blob)
+    const win  = window.open(url, '_blank', 'width=900,height=700')
+    // Compute ISO week number for filename
+    const wDate  = new Date(weekStartDate)
+    const jan4   = new Date(wDate.getFullYear(), 0, 4)
+    const weekNo = Math.ceil(((wDate - jan4) / 86400000 + jan4.getDay() + 1) / 7)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${empId}_W${weekNo}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    if (!win) toast.error('Pop-up blocked. Please allow pop-ups to export PDF.')
   }
 
   return (
@@ -301,6 +323,7 @@ ${rows.length === 0
             {weekInReview && <span className="badge badge-warning">Under Review</span>}
             {weekApproved && <span className="badge badge-success">Approved</span>}
           </div>
+        </div>
         <TimesheetEntryForm
           weekStartDate={weekStartDate}
           existingEntries={currentWeekEntries}

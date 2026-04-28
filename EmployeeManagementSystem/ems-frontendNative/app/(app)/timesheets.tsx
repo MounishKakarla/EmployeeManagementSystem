@@ -206,12 +206,18 @@ export default function TimesheetScreen() {
     try {
       Toast.show({ type: 'info', text1: 'Generating PDF…', visibilityTime: 1500 })
       const { uri } = await Print.printToFileAsync({ html, base64: false })
+
+      // Build filename: EmpId_W{isoWeek}.pdf
+      const empId    = entries[0]?.empId || user?.empId || 'EMP'
+      const weekNo   = dayjs(currentWeekStart).isoWeek()
+      const fileName = `${empId}_W${weekNo}.pdf`
+
       const canShare = await Sharing.isAvailableAsync()
       if (canShare) {
         await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Share Timesheet PDF',
-          UTI: 'com.adobe.pdf',
+          mimeType:    'application/pdf',
+          dialogTitle: `Share ${fileName}`,
+          UTI:         'com.adobe.pdf',
         })
       } else {
         Toast.show({ type: 'error', text1: 'Sharing not available on this device' })
