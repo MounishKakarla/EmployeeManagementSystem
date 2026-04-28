@@ -68,7 +68,7 @@ export default function TimesheetPage() {
     queryFn: () => timesheetAPI.getMyTimesheets({
       page: myPage, size: PAGE_SIZE,
       ...(myFrom && { from: toWeekStart(myFrom) }),
-      ...(myTo   && { to: toWeekStart(myTo) }),
+      ...(myTo   && { to: myTo }),
     }),
     enabled: activeTab === 'my',
   })
@@ -79,7 +79,7 @@ export default function TimesheetPage() {
     queryFn: () => timesheetAPI.getTeam(teamEmpId || undefined, teamStatus || undefined, {
       page: teamPage, size: PAGE_SIZE,
       ...(teamFrom && { from: toWeekStart(teamFrom) }),
-      ...(teamTo   && { to: toWeekStart(teamTo) }),
+      ...(teamTo   && { to: teamTo }),
     }),
     enabled: activeTab === 'team' && canManage,
   })

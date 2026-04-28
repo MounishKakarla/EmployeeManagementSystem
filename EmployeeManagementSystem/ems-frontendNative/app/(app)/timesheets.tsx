@@ -94,7 +94,7 @@ export default function TimesheetScreen() {
     queryFn: () => timesheetAPI.getMyTimesheets({
       page: 0, size: 30,
       ...(myFrom && { from: toWeekStart(myFrom) }),
-      ...(myTo   && { to: toWeekStart(myTo) }),
+      ...(myTo   && { to: myTo }),
     }),
     enabled: activeTab === 'my',
   })
@@ -104,7 +104,7 @@ export default function TimesheetScreen() {
     queryFn: () => timesheetAPI.getTeam(teamSearch.trim() || undefined, teamFilter || undefined, {
       page: 0, size: 50,
       ...(teamFrom && { from: toWeekStart(teamFrom) }),
-      ...(teamTo   && { to: toWeekStart(teamTo) }),
+      ...(teamTo   && { to: teamTo }),
     }),
     enabled: canManage && activeTab === 'team',
   })
