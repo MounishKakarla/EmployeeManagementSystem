@@ -53,7 +53,7 @@ export default function TimesheetScreen() {
 
   const [activeTab, setActiveTab] = useState('my')
   const [projectName, setProjectName] = useState('')
-  const [hours, setHours]             = useState('')
+  const [dayHoursMap, setDayHoursMap] = useState<Record<string, string>>({})
   const [taskDesc, setTaskDesc]       = useState('')
   const _todayIdx = dayjs().day() === 0 ? 6 : dayjs().day() - 1
   const [selectedDay, setSelectedDay] = useState(DAYS[_todayIdx].key)
@@ -118,14 +118,14 @@ export default function TimesheetScreen() {
   const monday = dayjs(selectedDate).startOf('isoWeek')
   const currentWeekStart = monday.format('YYYY-MM-DD')
 
-  // Auto-calculate hours from start/end times
+  // Auto-calculate hours for the selected day from start/end times
   useEffect(() => {
     if (startTime && endTime) {
       const [sh, sm] = startTime.split(':').map(Number)
       const [eh, em] = endTime.split(':').map(Number)
       let diff = (eh * 60 + em) - (sh * 60 + sm)
       if (diff < 0) diff += 24 * 60
-      if (diff > 0) setHours((diff / 60).toFixed(1))
+      if (diff > 0) setDayHoursMap(prev => ({ ...prev, [selectedDay]: (diff / 60).toFixed(1) }))
     }
   }, [startTime, endTime])
 
@@ -239,8 +239,9 @@ export default function TimesheetScreen() {
     if (!taskDesc.trim()) {
       Toast.show({ type: 'error', text1: 'Task description is required' }); return
     }
-    if (!hours || parseFloat(hours) <= 0) {
-      Toast.show({ type: 'error', text1: 'Hours worked must be greater than 0' }); return
+    const anyHours = DAYS.some(d => parseFloat(dayHoursMap[d.key] || '0') > 0)
+    if (!anyHours) {
+      Toast.show({ type: 'error', text1: 'Enter hours for at least one day' }); return
     }
     saveMutation.mutate()
   }
@@ -253,14 +254,31 @@ export default function TimesheetScreen() {
       taskDescription: taskDesc.trim(),
       startTime:       startTime || undefined,
       endTime:         endTime   || undefined,
-      [selectedDay]:   parseFloat(hours) || 0,
+      // Send ALL days so other days' hours are never wiped on update
+      ...Object.fromEntries(DAYS.map(d => [d.key, parseFloat(dayHoursMap[d.key] || '0') || 0])),
     }),
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Entry saved!' })
-      setHours(''); setTaskDesc(''); setProjectName(''); setStartTime(''); setEndTime('')
+      setDayHoursMap({}); setTaskDesc(''); setProjectName(''); setStartTime(''); setEndTime('')
       setEditingId(null); setSaveAttempted(false); refetch()
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to save entry' }),
+  })
+
+  // Zero out a single day without touching the rest of the entry
+  const clearDayMutation = useMutation({
+    mutationFn: ({ entryId, dayKey, entry }: { entryId: number; dayKey: string; entry: any }) =>
+      timesheetAPI.saveEntry({
+        id:              entryId,
+        weekStartDate:   currentWeekStart,
+        project:         entry.project,
+        taskDescription: entry.taskDescription,
+        startTime:       entry.startTime || undefined,
+        endTime:         entry.endTime   || undefined,
+        ...Object.fromEntries(DAYS.map(d => [d.key, d.key === dayKey ? 0 : (entry[d.key] || 0)])),
+      }),
+    onSuccess: () => { Toast.show({ type: 'success', text1: 'Day cleared' }); refetch() },
+    onError:   (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to clear day' }),
   })
 
   const changeWeek = (offset: number) => {
@@ -358,17 +376,16 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
     setTaskDesc(e.taskDescription)
     setStartTime(e.startTime || '')
     setEndTime(e.endTime || '')
+    // Load ALL day hours so editing one day never wipes another
+    const map: Record<string, string> = {}
+    DAYS.forEach(d => { if ((e[d.key] || 0) > 0) map[d.key] = String(e[d.key]) })
+    setDayHoursMap(map)
     const firstDay = DAYS.find(d => (e[d.key] || 0) > 0)
-    if (firstDay) {
-      setSelectedDay(firstDay.key)
-      setHours(String(e[firstDay.key]))
-    } else {
-      setHours('')
-    }
+    if (firstDay) setSelectedDay(firstDay.key)
   }
 
   const resetForm = () => {
-    setEditingId(null); setProjectName(''); setHours(''); setTaskDesc('')
+    setEditingId(null); setProjectName(''); setDayHoursMap({}); setTaskDesc('')
     setStartTime(''); setEndTime('')
   }
 
@@ -488,6 +505,14 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
               </View>
             </View>
 
+            {weekStatus === 'SUBMITTED' && (
+              <View style={{ backgroundColor: Colors.warningLight, borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+                <Text style={{ color: Colors.warning, fontSize: FontSize.xs, textAlign: 'center' }}>
+                  Under Review — you can still edit entries. Changes stay in review.
+                </Text>
+              </View>
+            )}
+
             {weekStatus !== 'APPROVED' && (
               <View style={[styles.card, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                 <Text style={[styles.cardTitle, { color: Colors.textPrimary }]}>Add Entry</Text>
@@ -524,11 +549,19 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                         >
                           <Text style={[styles.dayPillText, { color: Colors.textSecondary }, isActive && { color: Colors.accent, fontWeight: FontWeight.bold }]}>{d.label}</Text>
                           <Text style={{ fontSize: 8, color: isActive ? Colors.accent : Colors.textMuted, textAlign: 'center' }}>{pillDate.format('D MMM')}</Text>
+                          {parseFloat(dayHoursMap[d.key] || '0') > 0 && (
+                            <Text style={{ fontSize: 8, color: Colors.success, fontWeight: FontWeight.bold }}>{dayHoursMap[d.key]}h</Text>
+                          )}
                         </TouchableOpacity>
                       )
                     })}
                   </View>
-                  <TextInput style={[styles.input, { width: 80, marginTop: 0, backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="0.0" placeholderTextColor={Colors.textMuted} keyboardType="decimal-pad" value={hours} onChangeText={setHours} />
+                  <TextInput
+                    style={[styles.input, { width: 80, marginTop: 0, backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]}
+                    placeholder="0.0" placeholderTextColor={Colors.textMuted} keyboardType="decimal-pad"
+                    value={dayHoursMap[selectedDay] || ''}
+                    onChangeText={v => setDayHoursMap(prev => ({ ...prev, [selectedDay]: v }))}
+                  />
                 </View>
                 {/* Time range row */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
@@ -622,13 +655,21 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                             </Text>
                           </View>
                         )}
-                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                           {DAYS.map(d => {
                             const val = e[d.key] || 0
                             if (val === 0) return null
                             return (
-                              <View key={d.key} style={[styles.dayMiniBadge, { backgroundColor: Colors.bgTertiary }]}>
+                              <View key={d.key} style={[styles.dayMiniBadge, { backgroundColor: Colors.bgTertiary, flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
                                 <Text style={[styles.dayMiniText, { color: Colors.textMuted }]}>{d.label}: {val}h</Text>
+                                {weekStatus !== 'APPROVED' && (
+                                  <TouchableOpacity
+                                    onPress={() => clearDayMutation.mutate({ entryId: e.id, dayKey: d.key, entry: e })}
+                                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                  >
+                                    <Ionicons name="close-circle" size={12} color={Colors.danger} />
+                                  </TouchableOpacity>
+                                )}
                               </View>
                             )
                           })}
@@ -905,7 +946,9 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
               <Ionicons name="trash-outline" size={32} color={Colors.danger} />
             </View>
             <Text style={[styles.confirmTitle, { color: Colors.textPrimary }]}>Delete Entry?</Text>
-            <Text style={[{ fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginBottom: Spacing.sm }]}>This entry will be permanently removed.</Text>
+            <Text style={[{ fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', marginBottom: Spacing.sm }]}>
+              This entry will be permanently removed — including from the review queue if it was submitted.
+            </Text>
             <View style={styles.confirmActions}>
               <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, borderWidth: 1 }]} onPress={() => setDeleteConfirmId(null)}>
                 <Text style={[styles.confirmBtnText, { color: Colors.textPrimary }]}>Cancel</Text>

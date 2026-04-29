@@ -58,6 +58,7 @@ export default function AttendanceScreen() {
   const [activeTab, setActiveTab] = useState('my')
   const [overrideOpen, setOverrideOpen] = useState(false)
 
+  // ovEmpId is always locked to a specific employee — set when opening the modal
   const [ovEmpId, setOvEmpId]     = useState('')
   const [ovDate, setOvDate]       = useState(dayjs().format('YYYY-MM-DD'))
   const [ovCheckIn, setOvCheckIn] = useState('09:00')
@@ -68,6 +69,17 @@ export default function AttendanceScreen() {
   const [rosterDate, setRosterDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [teamStart, setTeamStart] = useState(dayjs().startOf('month').format('YYYY-MM-DD'))
   const [teamEnd, setTeamEnd]     = useState(dayjs().format('YYYY-MM-DD'))
+
+  // Open override modal: empId from context (roster row or self), date from context or today
+  const openOverride = (empId: string, date?: string) => {
+    setOvEmpId(empId)
+    setOvDate(date || dayjs().format('YYYY-MM-DD'))
+    setOvCheckIn('09:00')
+    setOvCheckOut('18:00')
+    setOvStatus('PRESENT')
+    setOvNotes('')
+    setOverrideOpen(true)
+  }
 
   const { data: todayData, refetch, isRefetching } = useQuery({
     queryKey: ['attendance', 'today'],
@@ -117,7 +129,6 @@ export default function AttendanceScreen() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Attendance override saved!' })
       setOverrideOpen(false)
-      setOvEmpId(''); setOvNotes('')
       qc.invalidateQueries({ queryKey: ['attendance'] })
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Override failed' }),
@@ -138,7 +149,10 @@ export default function AttendanceScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Attendance</Text>
         {canManage && (
-          <TouchableOpacity style={[styles.overrideBtn, { backgroundColor: Colors.accent }]} onPress={() => setOverrideOpen(true)}>
+          <TouchableOpacity
+            style={[styles.overrideBtn, { backgroundColor: Colors.accent }]}
+            onPress={() => openOverride(user?.empId || '')}
+          >
             <Ionicons name="create-outline" size={16} color="#fff" />
             <Text style={styles.overrideBtnText}>Override</Text>
           </TouchableOpacity>
@@ -317,6 +331,14 @@ export default function AttendanceScreen() {
                     <View style={[styles.rosterBadge, { backgroundColor: s.bg }]}>
                       <Text style={[styles.rosterBadgeText, { color: s.color }]}>{s.label}</Text>
                     </View>
+                    {/* Override shortcut for this employee on this date */}
+                    <TouchableOpacity
+                      style={[styles.rowOverrideBtn, { backgroundColor: Colors.accentLight }]}
+                      onPress={() => openOverride(r.empId, rosterDate)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="create-outline" size={14} color={Colors.accent} />
+                    </TouchableOpacity>
                   </View>
                 )
               })
@@ -382,6 +404,7 @@ export default function AttendanceScreen() {
         )}
       </ScrollView>
 
+      {/* ── Manual Override Modal ─────────────────────────────────────────── */}
       <Modal visible={overrideOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOverrideOpen(false)}>
         <View style={[styles.modal, { backgroundColor: Colors.bgPrimary }]}>
           <View style={[styles.modalHeader, { borderBottomColor: Colors.border }]}>
@@ -392,11 +415,30 @@ export default function AttendanceScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ padding: Spacing.md, gap: Spacing.md }}>
-            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Employee ID</Text>
-            <TextInput style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="e.g. TT0001" placeholderTextColor={Colors.textMuted} value={ovEmpId} onChangeText={setOvEmpId} autoCapitalize="characters" />
 
-            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Date (YYYY-MM-DD)</Text>
-            <TextInput style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="e.g. 2026-05-01" placeholderTextColor={Colors.textMuted} value={ovDate} onChangeText={setOvDate} />
+            {/* Employee ID — auto-filled, non-editable */}
+            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Employee ID</Text>
+            <View style={[styles.readonlyField, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+              <Ionicons name="person-outline" size={16} color={Colors.textMuted} />
+              <Text style={[styles.readonlyText, { color: Colors.textPrimary }]}>{ovEmpId || '—'}</Text>
+              <View style={[styles.lockedBadge, { backgroundColor: Colors.accentLight }]}>
+                <Ionicons name="lock-closed-outline" size={11} color={Colors.accent} />
+                <Text style={[styles.lockedText, { color: Colors.accent }]}>Auto</Text>
+              </View>
+            </View>
+
+            {/* Date — auto-filled from context, non-editable */}
+            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Date</Text>
+            <View style={[styles.readonlyField, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
+              <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+              <Text style={[styles.readonlyText, { color: Colors.textPrimary }]}>
+                {dayjs(ovDate).format('ddd, DD MMM YYYY')}
+              </Text>
+              <View style={[styles.lockedBadge, { backgroundColor: Colors.accentLight }]}>
+                <Ionicons name="lock-closed-outline" size={11} color={Colors.accent} />
+                <Text style={[styles.lockedText, { color: Colors.accent }]}>Auto</Text>
+              </View>
+            </View>
 
             <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-in Time (HH:MM)</Text>
             <TextInput style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="09:00" placeholderTextColor={Colors.textMuted} value={ovCheckIn} onChangeText={setOvCheckIn} />
@@ -441,6 +483,7 @@ export default function AttendanceScreen() {
           </ScrollView>
         </View>
       </Modal>
+
     </SafeAreaView>
   )
 }
@@ -482,6 +525,7 @@ const styles = StyleSheet.create({
   rosterDur:      { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   rosterBadge:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.full },
   rosterBadgeText:{ fontSize: 10, fontWeight: FontWeight.bold },
+  rowOverrideBtn: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   filterCard:      { marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, borderWidth: 1, marginBottom: Spacing.md, gap: Spacing.sm },
   filterInput:     { borderRadius: Radius.sm, borderWidth: 1, padding: 10, fontSize: FontSize.md },
   dateQuickBtn:    { paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.full, borderWidth: 1 },
@@ -490,6 +534,10 @@ const styles = StyleSheet.create({
   modal:        { flex: 1 },
   modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderBottomWidth: 1 },
   modalTitle:   { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  readonlyField:{ flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: Radius.sm, borderWidth: 1, padding: 12 },
+  readonlyText: { flex: 1, fontSize: FontSize.md, fontWeight: FontWeight.medium },
+  lockedBadge:  { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Radius.full },
+  lockedText:   { fontSize: 10, fontWeight: FontWeight.bold },
   textInput:    { borderRadius: Radius.sm, borderWidth: 1, padding: 12, fontSize: FontSize.md },
   statusPill:   { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1 },
   statusPillText:   { fontSize: FontSize.sm, fontWeight: FontWeight.medium },

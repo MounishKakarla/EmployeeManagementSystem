@@ -61,6 +61,8 @@ public class TimesheetServiceImpl implements TimesheetService {
         if (ts.getStatus() == TimesheetStatus.APPROVED)
             throw new IllegalStateException("Approved timesheets cannot be edited.");
 
+        boolean wasSubmitted = ts.getStatus() == TimesheetStatus.SUBMITTED;
+
         if (dto.getProject() != null)         ts.setProject(dto.getProject());
         if (dto.getTaskDescription() != null) ts.setTaskDescription(dto.getTaskDescription());
         if (dto.getStartTime() != null) ts.setStartTime(dto.getStartTime());
@@ -74,11 +76,25 @@ public class TimesheetServiceImpl implements TimesheetService {
         ts.setFridayHours(   validateHours(dto.getFridayHours(),    weekStart.plusDays(4), nonWorking));
         ts.setSaturdayHours( orZero(dto.getSaturdayHours()));
         ts.setSundayHours(   orZero(dto.getSundayHours()));
-        ts.setStatus(TimesheetStatus.DRAFT);
+
+        // Preserve SUBMITTED status — editing a pending-review entry does not pull it back to DRAFT.
+        // Only new/DRAFT entries start or stay as DRAFT.
+        if (!wasSubmitted) {
+            ts.setStatus(TimesheetStatus.DRAFT);
+        }
 
         TimesheetDTO result = toDTO(timesheetRepo.save(ts));
-        auditService.log(empId, "SAVE_TIMESHEET_DRAFT",
-                "Saved draft for week " + weekStart + " project=" + dto.getProject());
+
+        if (wasSubmitted) {
+            auditService.log(empId, "UPDATE_SUBMITTED_TIMESHEET",
+                    "Updated submitted entry id=" + ts.getId() + " week=" + weekStart + " project=" + ts.getProject());
+            pushService.sendTimesheetStatusNotification(
+                    empId, "UPDATED_PENDING_REVIEW", weekStart.toString(),
+                    "Your submitted timesheet was updated and is still awaiting review.");
+        } else {
+            auditService.log(empId, "SAVE_TIMESHEET_DRAFT",
+                    "Saved draft for week " + weekStart + " project=" + dto.getProject());
+        }
         return result;
     }
 
@@ -89,8 +105,25 @@ public class TimesheetServiceImpl implements TimesheetService {
         List<Timesheet> entries = timesheetRepo.findByEmployeeEmpIdAndWeekStartDate(empId, weekStart);
         if (entries.isEmpty())
             throw new IllegalStateException("No timesheet entries for this week.");
-        if (entries.stream().noneMatch(t -> t.getTotalHours().compareTo(BigDecimal.ZERO) > 0))
-            throw new IllegalStateException("At least one project must have hours recorded.");
+
+        // Verify the whole week is covered: every non-holiday workday (Mon–Fri) must have
+        // at least some hours logged across all projects combined.
+        Set<LocalDate> holidays = getWeekNonWorkingDates(weekStart);
+        for (int day = 0; day < 5; day++) {
+            LocalDate workday = weekStart.plusDays(day);
+            if (holidays.contains(workday)) continue; // public holiday — skip
+            final int d = day;
+            BigDecimal totalForDay = entries.stream()
+                    .map(t -> getDayHours(t, d))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (totalForDay.compareTo(BigDecimal.ZERO) == 0) {
+                throw new IllegalStateException(
+                    "Hours missing for " + workday.getDayOfWeek().toString().charAt(0)
+                    + workday.getDayOfWeek().toString().substring(1).toLowerCase()
+                    + " " + workday + ". Fill all working days before submitting"
+                    + " (add a leave entry if you were absent).");
+            }
+        }
 
         entries.forEach(t -> { t.setStatus(TimesheetStatus.SUBMITTED); t.setSubmittedAt(LocalDateTime.now()); });
         timesheetRepo.saveAll(entries);
@@ -201,6 +234,18 @@ public class TimesheetServiceImpl implements TimesheetService {
         return orZero(hours);
     }
     private BigDecimal orZero(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }
+
+    // Returns hours for Mon(0)…Fri(4) offset within a timesheet entry
+    private BigDecimal getDayHours(Timesheet t, int dayOffset) {
+        return switch (dayOffset) {
+            case 0 -> orZero(t.getMondayHours());
+            case 1 -> orZero(t.getTuesdayHours());
+            case 2 -> orZero(t.getWednesdayHours());
+            case 3 -> orZero(t.getThursdayHours());
+            case 4 -> orZero(t.getFridayHours());
+            default -> BigDecimal.ZERO;
+        };
+    }
 
     private TimesheetDTO toDTO(Timesheet t) {
         return TimesheetDTO.builder()

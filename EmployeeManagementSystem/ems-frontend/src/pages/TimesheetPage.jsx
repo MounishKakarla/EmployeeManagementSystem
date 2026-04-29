@@ -410,7 +410,11 @@ ${rows.length === 0
                   : <><CheckSquare size={14} /> Submit for Review</>}
               </button>
             )}
-            {weekInReview && <span className="badge badge-warning">Under Review</span>}
+            {weekInReview && (
+              <span className="badge badge-warning" title="You can still edit entries — they will remain under review.">
+                Under Review ✎
+              </span>
+            )}
             {weekApproved && <span className="badge badge-success">Approved</span>}
           </div>
         </div>
