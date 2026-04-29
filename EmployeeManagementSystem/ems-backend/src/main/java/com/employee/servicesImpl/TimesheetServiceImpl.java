@@ -109,12 +109,15 @@ public class TimesheetServiceImpl implements TimesheetService {
         if (entries.isEmpty())
             throw new IllegalStateException("No timesheet entries for this week.");
 
-        // Verify the whole week is covered: every non-holiday, non-leave workday (Mon–Fri)
-        // must have at least some hours logged across all projects combined.
+        // Verify every non-holiday, non-leave workday (Mon–Fri) up to and including today
+        // has at least some hours logged across all projects combined.
+        // Future days (not yet reached) are skipped so mid-week submission is allowed.
+        LocalDate today    = LocalDate.now();
         Set<LocalDate> holidays  = getWeekNonWorkingDates(weekStart);
         Set<LocalDate> leaveDays = getApprovedLeaveDates(empId, weekStart, weekStart.plusDays(4));
         for (int day = 0; day < 5; day++) {
             LocalDate workday = weekStart.plusDays(day);
+            if (workday.isAfter(today))      continue; // future day — not required yet
             if (holidays.contains(workday))  continue; // public holiday — skip
             if (leaveDays.contains(workday)) continue; // employee on approved leave — skip
             final int d = day;
@@ -168,6 +171,17 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         if (ts.getStatus() != TimesheetStatus.SUBMITTED)
             throw new IllegalStateException("Only SUBMITTED entries can be reviewed.");
+
+        // ── WEEK-IN-PROGRESS GUARD ─────────────────────────────────────────
+        // Managers/Admins may only approve or reject a timesheet after the week
+        // has ended (i.e. from Saturday onwards). This ensures employees still
+        // have the chance to log Thursday/Friday hours before the review is locked.
+        LocalDate weekFriday = ts.getWeekStartDate().plusDays(4);
+        if (!weekFriday.isBefore(LocalDate.now())) {
+            throw new IllegalStateException(
+                "This week (ending " + weekFriday + ") is still in progress. " +
+                "Timesheets can only be reviewed from Saturday onwards.");
+        }
 
         // ── SELF-APPROVAL PREVENTION ───────────────────────────────────────
         // An admin/manager cannot approve or reject their own timesheet.
