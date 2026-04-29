@@ -14,7 +14,8 @@ import CalendarPicker from '../../src/components/CalendarPicker'
 import TimePicker from '../../src/components/TimePicker'
 import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
 
 dayjs.extend(isoWeek)
 
@@ -51,6 +52,11 @@ export default function TimesheetScreen() {
   const Colors = useThemeColors()
   const canManage = isAdmin() || isManager()
   const qc = useQueryClient()
+
+  useFocusEffect(useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['timesheet-week'] })
+    qc.invalidateQueries({ queryKey: ['my-timesheets'] })
+  }, [qc]))
 
   const [activeTab, setActiveTab] = useState('my')
   const [projectName, setProjectName] = useState('')
@@ -261,7 +267,9 @@ export default function TimesheetScreen() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Entry saved!' })
       setDayHoursMap({}); setTaskDesc(''); setProjectName(''); setStartTime(''); setEndTime('')
-      setEditingId(null); setSaveAttempted(false); refetch()
+      setEditingId(null); setSaveAttempted(false)
+      qc.invalidateQueries({ queryKey: ['timesheet-week'] })
+      qc.invalidateQueries({ queryKey: ['my-timesheets'] })
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to save entry' }),
   })
@@ -272,7 +280,11 @@ export default function TimesheetScreen() {
 
   const submitMutation = useMutation({
     mutationFn: () => timesheetAPI.submitWeek(currentWeekStart),
-    onSuccess: () => { Toast.show({ type: 'success', text1: 'Timesheet submitted for review!' }); refetch() },
+    onSuccess: () => {
+      Toast.show({ type: 'success', text1: 'Timesheet submitted for review!' })
+      qc.invalidateQueries({ queryKey: ['timesheet-week'] })
+      qc.invalidateQueries({ queryKey: ['my-timesheets'] })
+    },
     onError:   (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Submit failed. Please fill all working days.', visibilityTime: 4000 }),
   })
 
@@ -282,6 +294,7 @@ export default function TimesheetScreen() {
       Toast.show({ type: 'success', text1: `Timesheet ${action === 'APPROVED' ? 'approved' : 'rejected'}!` })
       setTsConfirm(null)
       qc.invalidateQueries({ queryKey: ['team-timesheets'] })
+      qc.invalidateQueries({ queryKey: ['timesheet-week'] })
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Review failed' }),
   })
@@ -292,7 +305,8 @@ export default function TimesheetScreen() {
       Toast.show({ type: 'success', text1: 'Entry deleted' })
       setDeleteConfirmId(null)
       resetForm()
-      refetch()
+      qc.invalidateQueries({ queryKey: ['timesheet-week'] })
+      qc.invalidateQueries({ queryKey: ['my-timesheets'] })
     },
     onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Delete failed' }),
   })

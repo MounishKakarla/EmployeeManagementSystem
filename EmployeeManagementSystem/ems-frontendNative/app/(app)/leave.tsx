@@ -1,5 +1,5 @@
 // app/(app)/leave.tsx — Leave Screen with Manager Review
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl, ActivityIndicator } from 'react-native'
 import CalendarPicker from '../../src/components/CalendarPicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -12,6 +12,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import dayjs from 'dayjs'
+import { useFocusEffect } from 'expo-router'
 
 const LEAVE_TYPES = [
   { value: 'ANNUAL',      label: 'Annual / Earned Leave' },
@@ -85,6 +86,11 @@ export default function LeaveScreen() {
   const canManage = isAdmin() || isManager()
   const qc = useQueryClient()
 
+  useFocusEffect(useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['leave-balance'] })
+    qc.invalidateQueries({ queryKey: ['my-leaves'] })
+  }, [qc]))
+
   // ✅ FIX 1: useThemeColors instead of static Colors import
   const Colors = useThemeColors()
 
@@ -148,7 +154,8 @@ export default function LeaveScreen() {
       Toast.show({ type: 'success', text1: 'Leave request submitted!' })
       setModalOpen(false); setLeaveType('ANNUAL'); setStartDate(''); setEndDate(''); setReason('')
       setShowStartPicker(false); setShowEndPicker(false)
-      refetch(); refetchLeaves()
+      qc.invalidateQueries({ queryKey: ['leave-balance'] })
+      qc.invalidateQueries({ queryKey: ['my-leaves'] })
     },
     onError: (err: any) => {
       Toast.show({ type: 'error', text1: 'Failed', text2: err?.response?.data?.message || 'Something went wrong' })
@@ -164,6 +171,8 @@ export default function LeaveScreen() {
       setLeaveConfirm(null); setModalNotes('')
       qc.invalidateQueries({ queryKey: ['pending-leaves'] })
       qc.invalidateQueries({ queryKey: ['all-leaves'] })
+      qc.invalidateQueries({ queryKey: ['leave-balance'] })
+      qc.invalidateQueries({ queryKey: ['my-leaves'] })
     },
     onError: (err: any) => {
       Toast.show({ type: 'error', text1: 'Review failed', text2: err?.response?.data?.message || 'Try again' })

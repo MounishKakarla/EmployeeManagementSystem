@@ -1,5 +1,5 @@
 // app/(app)/attendance.tsx — Attendance Screen with Admin/Manager tabs
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput, Modal, ActivityIndicator, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,6 +10,7 @@ import { useAuth } from '../../src/context/AuthContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import dayjs from 'dayjs'
+import { useFocusEffect } from 'expo-router'
 
 function getStatusStyle(status: string, Colors: any) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
@@ -54,6 +55,10 @@ export default function AttendanceScreen() {
   const Colors = useThemeColors()
   const canManage = isAdmin() || isManager()
   const qc = useQueryClient()
+
+  useFocusEffect(useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['attendance'] })
+  }, [qc]))
 
   const [activeTab, setActiveTab] = useState('my')
   const [overrideOpen, setOverrideOpen] = useState(false)

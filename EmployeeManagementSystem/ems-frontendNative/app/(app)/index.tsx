@@ -1,14 +1,15 @@
 // app/(app)/index.tsx — Dashboard Screen
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../../src/context/AuthContext'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { attendanceAPI, leaveAPI } from '../../src/api'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import dayjs from 'dayjs'
+import { useCallback } from 'react'
 
 function StatCard({ label, value, sub, color, icon, colors }: {
   label: string; value: string | number; sub?: string; color: string; icon: string; colors: any
@@ -44,6 +45,12 @@ export default function DashboardScreen() {
   const { user, logout } = useAuth()
   const router = useRouter()
   const Colors = useThemeColors()
+  const qc = useQueryClient()
+
+  useFocusEffect(useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['attendance-today'] })
+    qc.invalidateQueries({ queryKey: ['leave-balance'] })
+  }, [qc]))
 
   const { data: todayData, refetch: refetchToday, isRefetching: r1 } = useQuery({
     queryKey: ['attendance-today'],

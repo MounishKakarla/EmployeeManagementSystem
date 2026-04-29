@@ -13,7 +13,13 @@ import { usePushNotifications } from '../src/hooks/usePushNotifications'
 SplashScreen.preventAutoHideAsync()
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 0,          // Always treat cached data as stale → refetch on mount
+      refetchOnMount: true,  // Refetch whenever a component mounts
+    },
+  },
 })
 
 function AppContent() {

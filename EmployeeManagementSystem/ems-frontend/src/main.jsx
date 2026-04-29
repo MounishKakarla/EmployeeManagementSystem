@@ -71,7 +71,12 @@ const router = createBrowserRouter([
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 1000 * 60 * 2 },
+    queries: {
+      retry: 1,
+      staleTime: 0,                  // Always refetch on mount / window focus
+      refetchOnWindowFocus: true,    // Refresh when tab regains focus
+      refetchOnMount: true,          // Refresh every time a page component mounts
+    },
   },
 })
 
