@@ -142,6 +142,7 @@ export default function TimesheetPage() {
 
   const weekApproved = currentWeekEntries.some(e => e.status === 'APPROVED')
   const weekInReview = !weekApproved && currentWeekEntries.some(e => e.status === 'SUBMITTED')
+  const hasDraft     = currentWeekEntries.some(e => e.status === 'DRAFT')
 
   // ── Weekly hours progress ──────────────────────────────────────────────────
   const totalH = currentWeekEntries.reduce((s, e) => s + (
@@ -413,18 +414,20 @@ ${rows.length === 0
                 <Download size={14} /> Export PDF
               </button>
             )}
-            {!weekInReview && !weekApproved && (
+            {!weekApproved && hasDraft && (
               <button className="btn btn-primary btn-sm"
                 onClick={() => submitMutation.mutate(weekStartDate)}
                 disabled={submitMutation.isPending || currentWeekEntries.length === 0}>
                 {submitMutation.isPending
                   ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Submitting…</>
-                  : <><CheckSquare size={14} /> Submit for Review</>}
+                  : weekInReview
+                    ? <><CheckSquare size={14} /> Submit Remaining</>
+                    : <><CheckSquare size={14} /> Submit for Review</>}
               </button>
             )}
             {weekInReview && (
               <span className="badge badge-warning" title="You can still edit entries — they will remain under review.">
-                Under Review ✎
+                {hasDraft ? 'Partial · Under Review' : 'Under Review ✎'}
               </span>
             )}
             {weekApproved && <span className="badge badge-success">Approved</span>}

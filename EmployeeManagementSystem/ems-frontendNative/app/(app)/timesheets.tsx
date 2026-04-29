@@ -32,6 +32,7 @@ function getStatusStyle(status: string, Colors: any) {
   const map: Record<string, { color: string; bg: string }> = {
     DRAFT:     { color: Colors.textMuted,  bg: Colors.bgTertiary },
     SUBMITTED: { color: Colors.warning,    bg: Colors.warningLight },
+    PARTIAL:   { color: Colors.warning,    bg: Colors.warningLight },
     APPROVED:  { color: Colors.success,    bg: Colors.successLight },
     REJECTED:  { color: Colors.danger,     bg: Colors.dangerLight },
   }
@@ -408,8 +409,15 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
     return false
   }
 
-  const weekStatus = entries.length > 0 ? entries[0].status : 'DRAFT'
-  const canSubmit = (weekStatus === 'DRAFT' || weekStatus === 'REJECTED') && entries.length > 0
+  const weekApproved = entries.some((e: any) => e.status === 'APPROVED')
+  const weekInReview = !weekApproved && entries.some((e: any) => e.status === 'SUBMITTED')
+  const hasDraft     = entries.some((e: any) => e.status === 'DRAFT')
+  const weekStatus   = weekApproved ? 'APPROVED'
+                     : entries.some((e: any) => e.status === 'REJECTED') ? 'REJECTED'
+                     : weekInReview && hasDraft ? 'PARTIAL'
+                     : weekInReview ? 'SUBMITTED'
+                     : entries.length > 0 ? 'DRAFT' : ''
+  const canSubmit    = !weekApproved && hasDraft && entries.length > 0
   const myHistory = (myData?.data?.content || []).filter((r: any) => hasHoursInRange(r, myFrom, myTo))
   const teamList  = teamData?.data?.content || []
 
@@ -521,15 +529,17 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
               )}
             </View>
 
-            {weekStatus === 'SUBMITTED' && (
+            {weekInReview && (
               <View style={{ backgroundColor: Colors.warningLight, borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.sm }}>
                 <Text style={{ color: Colors.warning, fontSize: FontSize.xs, textAlign: 'center' }}>
-                  Under Review — you can still edit entries. Changes stay in review.
+                  {hasDraft
+                    ? 'Some entries are under review. Save new entries then tap Submit Remaining.'
+                    : 'Under Review — you can still edit entries. Changes stay in review.'}
                 </Text>
               </View>
             )}
 
-            {weekStatus !== 'APPROVED' && (
+            {!weekApproved && (
               <View style={[styles.card, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                 <Text style={[styles.cardTitle, { color: Colors.textPrimary }]}>Add Entry</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -652,7 +662,7 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
               ? <Text style={[styles.empty, { color: Colors.textMuted }]}>No entries yet this week.</Text>
               : entries.map((e: any, i: number) => (
                   <View key={e.id || i} style={[styles.entryRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }, editingId === e.id && { borderColor: Colors.accent, backgroundColor: Colors.accentLight }]}>
-                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => weekStatus !== 'APPROVED' && handleEdit(e)} activeOpacity={0.7}>
+                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => !weekApproved && handleEdit(e)} activeOpacity={0.7}>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text style={[styles.entryProject, { color: Colors.textPrimary }]}>{e.project}</Text>
@@ -685,7 +695,7 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
                       </View>
                       <Text style={[styles.entryHours, { color: Colors.accent }]}>{e.totalHours}h</Text>
                     </TouchableOpacity>
-                    {weekStatus !== 'APPROVED' && (
+                    {!weekApproved && (
                       <TouchableOpacity onPress={() => setDeleteConfirmId(e.id)} style={{ padding: 8, marginLeft: 4 }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                         <Ionicons name="trash-outline" size={16} color={Colors.danger} />
                       </TouchableOpacity>
@@ -699,7 +709,9 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
               {canSubmit && (
                 <TouchableOpacity style={[styles.greenBtn, { flex: 1, margin: 0, backgroundColor: Colors.success }, submitMutation.isPending && { opacity: 0.6 }]} onPress={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
                   <Ionicons name="send-outline" size={16} color="#fff" />
-                  <Text style={styles.greenBtnText}>{submitMutation.isPending ? 'Submitting…' : 'Submit'}</Text>
+                  <Text style={styles.greenBtnText}>
+                    {submitMutation.isPending ? 'Submitting…' : weekInReview ? 'Submit Remaining' : 'Submit'}
+                  </Text>
                 </TouchableOpacity>
               )}
               {entries.length > 0 && (
