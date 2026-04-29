@@ -660,16 +660,8 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
                             const val = e[d.key] || 0
                             if (val === 0) return null
                             return (
-                              <View key={d.key} style={[styles.dayMiniBadge, { backgroundColor: Colors.bgTertiary, flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                              <View key={d.key} style={[styles.dayMiniBadge, { backgroundColor: Colors.bgTertiary }]}>
                                 <Text style={[styles.dayMiniText, { color: Colors.textMuted }]}>{d.label}: {val}h</Text>
-                                {weekStatus !== 'APPROVED' && (
-                                  <TouchableOpacity
-                                    onPress={() => clearDayMutation.mutate({ entryId: e.id, dayKey: d.key, entry: e })}
-                                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                                  >
-                                    <Ionicons name="close-circle" size={12} color={Colors.danger} />
-                                  </TouchableOpacity>
-                                )}
                               </View>
                             )
                           })}

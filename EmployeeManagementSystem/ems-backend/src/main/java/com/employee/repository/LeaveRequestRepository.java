@@ -102,5 +102,18 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
            "l.status = 'APPROVED' AND " +
            "l.startDate <= :date AND l.endDate >= :date")
     List<LeaveRequest> findApprovedLeavesSpanningDate(@Param("date") LocalDate date);
+
+    /**
+     * Find all APPROVED leaves for a specific employee that overlap a date range.
+     * Used by timesheet submission to skip days the employee was on approved leave.
+     */
+    @Query("SELECT l FROM LeaveRequest l WHERE " +
+           "l.employee.empId = :empId AND " +
+           "l.status = 'APPROVED' AND " +
+           "l.startDate <= :endDate AND l.endDate >= :startDate")
+    List<LeaveRequest> findApprovedLeavesForEmployee(
+            @Param("empId")     String empId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate")   LocalDate endDate);
 }
 

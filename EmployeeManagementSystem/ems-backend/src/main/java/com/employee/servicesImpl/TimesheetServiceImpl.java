@@ -16,11 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.employee.dto.TimesheetDTO;
 import com.employee.entity.Employee;
+import com.employee.entity.LeaveRequest;
 import com.employee.entity.Timesheet;
 import com.employee.enums.TimesheetStatus;
 import com.employee.exceptions.EmployeeNotFoundException;
 import com.employee.repository.EmployeeRepository;
 import com.employee.repository.HolidayCalendarRepository;
+import com.employee.repository.LeaveRequestRepository;
 import com.employee.repository.TimesheetRepository;
 import com.employee.services.AuditService;
 import com.employee.services.PushNotificationService;
@@ -36,6 +38,7 @@ public class TimesheetServiceImpl implements TimesheetService {
     private final TimesheetRepository       timesheetRepo;
     private final EmployeeRepository        employeeRepo;
     private final HolidayCalendarRepository holidayRepo;
+    private final LeaveRequestRepository    leaveRepo;
     private final AuditService              auditService;
     private final PushNotificationService   pushService;
 
@@ -106,12 +109,14 @@ public class TimesheetServiceImpl implements TimesheetService {
         if (entries.isEmpty())
             throw new IllegalStateException("No timesheet entries for this week.");
 
-        // Verify the whole week is covered: every non-holiday workday (Mon–Fri) must have
-        // at least some hours logged across all projects combined.
-        Set<LocalDate> holidays = getWeekNonWorkingDates(weekStart);
+        // Verify the whole week is covered: every non-holiday, non-leave workday (Mon–Fri)
+        // must have at least some hours logged across all projects combined.
+        Set<LocalDate> holidays  = getWeekNonWorkingDates(weekStart);
+        Set<LocalDate> leaveDays = getApprovedLeaveDates(empId, weekStart, weekStart.plusDays(4));
         for (int day = 0; day < 5; day++) {
             LocalDate workday = weekStart.plusDays(day);
-            if (holidays.contains(workday)) continue; // public holiday — skip
+            if (holidays.contains(workday))  continue; // public holiday — skip
+            if (leaveDays.contains(workday)) continue; // employee on approved leave — skip
             final int d = day;
             BigDecimal totalForDay = entries.stream()
                     .map(t -> getDayHours(t, d))
@@ -120,8 +125,8 @@ public class TimesheetServiceImpl implements TimesheetService {
                 throw new IllegalStateException(
                     "Hours missing for " + workday.getDayOfWeek().toString().charAt(0)
                     + workday.getDayOfWeek().toString().substring(1).toLowerCase()
-                    + " " + workday + ". Fill all working days before submitting"
-                    + " (add a leave entry if you were absent).");
+                    + " " + workday + ". Fill all working days before submitting."
+                    + " If you were absent, ensure your leave is approved first.");
             }
         }
 
@@ -228,6 +233,19 @@ public class TimesheetServiceImpl implements TimesheetService {
     private Set<LocalDate> getWeekNonWorkingDates(LocalDate monday) {
         return holidayRepo.findByHolidayDateBetweenOrderByHolidayDateAsc(monday, monday.plusDays(4))
                 .stream().map(h -> h.getHolidayDate()).collect(Collectors.toSet());
+    }
+    private Set<LocalDate> getApprovedLeaveDates(String empId, LocalDate startDate, LocalDate endDate) {
+        List<LeaveRequest> leaves = leaveRepo.findApprovedLeavesForEmployee(empId, startDate, endDate);
+        Set<LocalDate> leaveDates = new java.util.HashSet<>();
+        for (LeaveRequest leave : leaves) {
+            LocalDate d = leave.getStartDate().isBefore(startDate) ? startDate : leave.getStartDate();
+            LocalDate end = leave.getEndDate().isAfter(endDate) ? endDate : leave.getEndDate();
+            while (!d.isAfter(end)) {
+                leaveDates.add(d);
+                d = d.plusDays(1);
+            }
+        }
+        return leaveDates;
     }
     private BigDecimal validateHours(BigDecimal hours, LocalDate date, Set<LocalDate> publicHolidays) {
         if (publicHolidays.contains(date)) return BigDecimal.ZERO;
