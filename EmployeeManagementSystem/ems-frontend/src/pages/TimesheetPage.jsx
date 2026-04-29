@@ -109,7 +109,21 @@ export default function TimesheetPage() {
     onError: (err) => toast.error(parseApiError(err, 'Review failed')),
   })
 
-  const myHistory    = myData?.data?.content   || []
+  const TS_DAY_KEYS = ['mondayHours','tuesdayHours','wednesdayHours','thursdayHours','fridayHours','saturdayHours','sundayHours']
+  const hasHoursInRange = (entry, from, to) => {
+    if (!from && !to) return true
+    const ws = new Date(entry.weekStartDate + 'T12:00:00')
+    for (let i = 0; i < TS_DAY_KEYS.length; i++) {
+      if ((entry[TS_DAY_KEYS[i]] || 0) > 0) {
+        const d = new Date(ws); d.setDate(ws.getDate() + i)
+        const ds = d.toISOString().split('T')[0]
+        if ((!from || ds >= from) && (!to || ds <= to)) return true
+      }
+    }
+    return false
+  }
+
+  const myHistory    = (myData?.data?.content   || []).filter(r => hasHoursInRange(r, myFrom, myTo))
   const myTotalPages = myData?.data?.totalPages || 0
   const teamHistory  = teamData?.data?.content  || []
   const teamPages    = teamData?.data?.totalPages || 0

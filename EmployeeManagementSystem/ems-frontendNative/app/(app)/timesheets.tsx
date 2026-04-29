@@ -374,9 +374,22 @@ td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
 
   const entries   = Array.isArray(data?.data) ? data.data : (data?.data?.entries || [])
   const totalH    = entries.reduce((s: number, e: any) => s + (e.totalHours || 0), 0)
+  const TS_DAY_KEYS = ['mondayHours','tuesdayHours','wednesdayHours','thursdayHours','fridayHours','saturdayHours','sundayHours']
+  const hasHoursInRange = (entry: any, from: string, to: string) => {
+    if (!from && !to) return true
+    const ws = dayjs(entry.weekStartDate)
+    for (let i = 0; i < TS_DAY_KEYS.length; i++) {
+      if ((entry[TS_DAY_KEYS[i]] || 0) > 0) {
+        const ds = ws.add(i, 'day').format('YYYY-MM-DD')
+        if ((!from || ds >= from) && (!to || ds <= to)) return true
+      }
+    }
+    return false
+  }
+
   const weekStatus = entries.length > 0 ? entries[0].status : 'DRAFT'
   const canSubmit = (weekStatus === 'DRAFT' || weekStatus === 'REJECTED') && entries.length > 0
-  const myHistory = myData?.data?.content || []
+  const myHistory = (myData?.data?.content || []).filter((r: any) => hasHoursInRange(r, myFrom, myTo))
   const teamList  = teamData?.data?.content || []
 
   // Weekly progress target (adjusted for approved leave)
