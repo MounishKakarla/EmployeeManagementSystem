@@ -1,6 +1,6 @@
 // app/(app)/profile.tsx — Profile Screen
-import { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native'
+import { useState, useRef } from 'react'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -39,6 +39,11 @@ export default function ProfileScreen() {
   const [showConfirmPwd, setShowConfirmPwd] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
+  const scrollRef   = useRef<ScrollView>(null)
+  const pwdSectionRef = useRef<View>(null)
+  const newPwdRef   = useRef<TextInput>(null)
+  const confirmRef  = useRef<TextInput>(null)
+
   const { data: profileData } = useQuery({
     queryKey: ['profile'],
     queryFn: () => employeeAPI.getProfile(),
@@ -70,6 +75,21 @@ export default function ProfileScreen() {
 
   const handleLogout = () => setShowLogoutModal(true)
 
+  const togglePwdForm = () => {
+    const opening = !showPwdForm
+    setShowPwdForm(opening)
+    if (opening) {
+      // Wait for the section to render then scroll it into view
+      setTimeout(() => {
+        pwdSectionRef.current?.measureLayout(
+          scrollRef.current as any,
+          (_x, y) => scrollRef.current?.scrollTo({ y: y - 16, animated: true }),
+          () => scrollRef.current?.scrollToEnd({ animated: true }),
+        )
+      }, 150)
+    }
+  }
+
   const initials = profile?.name?.split(' ')?.map((n: string) => n[0])?.join('')?.slice(0, 2).toUpperCase() || '??'
 
   return (
@@ -78,7 +98,18 @@ export default function ProfileScreen() {
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Profile</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerStyle={{ paddingBottom: 60 }}
+      >
 
         {/* Avatar + name card */}
         <View style={[styles.heroCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
@@ -134,33 +165,76 @@ export default function ProfileScreen() {
         </View>
 
         {/* Change Password */}
-        <View style={[styles.card, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
-          <TouchableOpacity style={styles.cardTitleRow} onPress={() => setShowPwdForm(v => !v)}>
+        <View ref={pwdSectionRef} style={[styles.card, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
+          <TouchableOpacity style={styles.cardTitleRow} onPress={togglePwdForm}>
             <Text style={[styles.cardTitle, { color: Colors.textPrimary }]}>Change Password</Text>
             <Ionicons name={showPwdForm ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />
           </TouchableOpacity>
 
           {showPwdForm && (
             <View style={{ gap: Spacing.sm, marginTop: Spacing.sm }}>
+              {/* Current password */}
               <View style={[styles.pwdWrapper, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
-                <TextInput style={[styles.pwdInput, { color: Colors.textPrimary }]} placeholder="Current password" placeholderTextColor={Colors.textMuted} secureTextEntry={!showCurrentPwd} value={currentPwd} onChangeText={setCurrentPwd} />
+                <TextInput
+                  style={[styles.pwdInput, { color: Colors.textPrimary }]}
+                  placeholder="Current password"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={!showCurrentPwd}
+                  value={currentPwd}
+                  onChangeText={setCurrentPwd}
+                  returnKeyType="next"
+                  onSubmitEditing={() => newPwdRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
                 <TouchableOpacity onPress={() => setShowCurrentPwd(v => !v)} style={styles.eyeBtn}>
                   <Ionicons name={showCurrentPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
+
+              {/* New password */}
               <View style={[styles.pwdWrapper, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
-                <TextInput style={[styles.pwdInput, { color: Colors.textPrimary }]} placeholder="New password" placeholderTextColor={Colors.textMuted} secureTextEntry={!showNewPwd} value={newPwd} onChangeText={setNewPwd} />
+                <TextInput
+                  ref={newPwdRef}
+                  style={[styles.pwdInput, { color: Colors.textPrimary }]}
+                  placeholder="New password"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={!showNewPwd}
+                  value={newPwd}
+                  onChangeText={setNewPwd}
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmRef.current?.focus()}
+                  blurOnSubmit={false}
+                  onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                />
                 <TouchableOpacity onPress={() => setShowNewPwd(v => !v)} style={styles.eyeBtn}>
                   <Ionicons name={showNewPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
+
+              {/* Confirm password */}
               <View style={[styles.pwdWrapper, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border }]}>
-                <TextInput style={[styles.pwdInput, { color: Colors.textPrimary }]} placeholder="Confirm new password" placeholderTextColor={Colors.textMuted} secureTextEntry={!showConfirmPwd} value={confirmPwd} onChangeText={setConfirmPwd} />
+                <TextInput
+                  ref={confirmRef}
+                  style={[styles.pwdInput, { color: Colors.textPrimary }]}
+                  placeholder="Confirm new password"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={!showConfirmPwd}
+                  value={confirmPwd}
+                  onChangeText={setConfirmPwd}
+                  returnKeyType="done"
+                  onSubmitEditing={handleChangePassword}
+                  onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                />
                 <TouchableOpacity onPress={() => setShowConfirmPwd(v => !v)} style={styles.eyeBtn}>
                   <Ionicons name={showConfirmPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: Colors.accent }, changePwdMutation.isPending && { opacity: 0.6 }]} onPress={handleChangePassword} disabled={changePwdMutation.isPending}>
+
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: Colors.accent }, changePwdMutation.isPending && { opacity: 0.6 }]}
+                onPress={handleChangePassword}
+                disabled={changePwdMutation.isPending}
+              >
                 <Text style={styles.btnText}>{changePwdMutation.isPending ? 'Saving…' : 'Update Password'}</Text>
               </TouchableOpacity>
             </View>
@@ -173,6 +247,7 @@ export default function ProfileScreen() {
           <Text style={[styles.logoutText, { color: Colors.danger }]}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ── Sign-out confirmation modal ─────────────────────────────────────── */}
       <Modal transparent animationType="fade" visible={showLogoutModal} onRequestClose={() => setShowLogoutModal(false)}>
