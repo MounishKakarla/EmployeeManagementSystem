@@ -12,6 +12,32 @@ import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import dayjs from 'dayjs'
 import { useFocusEffect } from 'expo-router'
 
+// Convert "HH:MM" → total minutes since midnight, null if invalid
+function toMins(hhmm: string): number | null {
+  if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return null
+  const [h, m] = hhmm.split(':').map(Number)
+  if (h > 23 || m > 59) return null
+  return h * 60 + m
+}
+
+// Convert "HH:MM" → "9:00 AM" style
+function to12hr(hhmm: string): string | null {
+  const mins = toMins(hhmm)
+  if (mins === null) return null
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  const period = h >= 12 ? 'PM' : 'AM'
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// Format minute-diff → "Xh Ym"
+function fmtDuration(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
 function getStatusStyle(status: string, Colors: any) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     PRESENT:        { label: 'Present',        color: Colors.success, bg: Colors.successLight },
@@ -445,11 +471,75 @@ export default function AttendanceScreen() {
               </View>
             </View>
 
-            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-in Time (HH:MM)</Text>
-            <TextInput style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="09:00" placeholderTextColor={Colors.textMuted} value={ovCheckIn} onChangeText={setOvCheckIn} />
+            {/* ── Check-in / Check-out time inputs with dual-format preview ── */}
+            {(() => {
+              const inM   = toMins(ovCheckIn)
+              const outM  = toMins(ovCheckOut)
+              const hasError = inM !== null && outM !== null && outM <= inM
+              const durMins  = inM !== null && outM !== null && outM > inM ? outM - inM : null
+              return (
+                <>
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    {/* Check-in */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-in (24h)</Text>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]}
+                        placeholder="09:00"
+                        placeholderTextColor={Colors.textMuted}
+                        value={ovCheckIn}
+                        onChangeText={setOvCheckIn}
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                      />
+                      {to12hr(ovCheckIn) && (
+                        <Text style={{ fontSize: 11, color: Colors.success, marginTop: 3, fontWeight: '600' }}>
+                          ↳ {to12hr(ovCheckIn)}
+                        </Text>
+                      )}
+                    </View>
+                    {/* Check-out */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-out (24h)</Text>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: hasError ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
+                        placeholder="18:00"
+                        placeholderTextColor={Colors.textMuted}
+                        value={ovCheckOut}
+                        onChangeText={setOvCheckOut}
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                      />
+                      {to12hr(ovCheckOut) && (
+                        <Text style={{ fontSize: 11, color: hasError ? Colors.danger : Colors.info, marginTop: 3, fontWeight: '600' }}>
+                          ↳ {to12hr(ovCheckOut)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
 
-            <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-out Time (HH:MM)</Text>
-            <TextInput style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]} placeholder="18:00" placeholderTextColor={Colors.textMuted} value={ovCheckOut} onChangeText={setOvCheckOut} />
+                  {/* Duration badge or error */}
+                  {(durMins !== null || hasError) && (
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 6,
+                      backgroundColor: hasError ? Colors.dangerLight : Colors.infoLight,
+                      padding: 10, borderRadius: Radius.sm, marginTop: 2,
+                    }}>
+                      <Ionicons
+                        name={hasError ? 'warning-outline' : 'timer-outline'}
+                        size={14}
+                        color={hasError ? Colors.danger : Colors.info}
+                      />
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: hasError ? Colors.danger : Colors.info }}>
+                        {hasError
+                          ? 'Check-out must be after check-in'
+                          : `Duration: ${fmtDuration(durMins!)}`}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              )
+            })()}
 
             <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Status</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
@@ -476,15 +566,32 @@ export default function AttendanceScreen() {
               multiline
             />
 
-            <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: Colors.accent }, overrideMutation.isPending && { opacity: 0.6 }]}
-              onPress={() => overrideMutation.mutate()}
-              disabled={overrideMutation.isPending || !ovEmpId}
-            >
-              <Text style={styles.submitBtnText}>
-                {overrideMutation.isPending ? 'Saving…' : 'Save Override'}
-              </Text>
-            </TouchableOpacity>
+            {(() => {
+              const inM  = toMins(ovCheckIn)
+              const outM = toMins(ovCheckOut)
+              const hasTimeError = inM !== null && outM !== null && outM <= inM
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.submitBtn,
+                    { backgroundColor: Colors.accent },
+                    (overrideMutation.isPending || hasTimeError) && { opacity: 0.5 },
+                  ]}
+                  onPress={() => {
+                    if (hasTimeError) {
+                      Toast.show({ type: 'error', text1: 'Check-out must be after check-in' })
+                      return
+                    }
+                    overrideMutation.mutate()
+                  }}
+                  disabled={overrideMutation.isPending || !ovEmpId || hasTimeError}
+                >
+                  <Text style={styles.submitBtnText}>
+                    {overrideMutation.isPending ? 'Saving…' : 'Save Override'}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })()}
           </ScrollView>
         </View>
       </Modal>

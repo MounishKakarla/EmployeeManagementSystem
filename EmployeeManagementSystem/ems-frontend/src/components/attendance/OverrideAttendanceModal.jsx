@@ -22,11 +22,38 @@ const STATUS_OPTIONS = [
   { value: 'WEEKEND',        label: 'Weekend'        },
 ]
 
+// Convert "HH:MM" → total minutes since midnight
+function toMins(hhmm) {
+  if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+// Convert "HH:MM" → "9:00 AM" style
+function to12hr(hhmm) {
+  const mins = toMins(hhmm)
+  if (mins === null) return null
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// Format duration in minutes → "Xh Ym"
+function fmtDuration(mins) {
+  if (mins === null || mins <= 0) return null
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
 export default function OverrideAttendanceModal({ open, onClose, editRecord, onSuccess }) {
   const { user } = useAuth()
   const isEdit = !!editRecord
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm({
     defaultValues: {
       empId:          user?.empId || '',
       attendanceDate: new Date().toISOString().split('T')[0],
@@ -36,6 +63,16 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
       notes:          '',
     },
   })
+
+  const checkInTime  = watch('checkInTime')
+  const checkOutTime = watch('checkOutTime')
+
+  const inMins  = toMins(checkInTime)
+  const outMins = toMins(checkOutTime)
+  const duration = (inMins !== null && outMins !== null) ? fmtDuration(outMins - inMins) : null
+  const timeError = (inMins !== null && outMins !== null && outMins <= inMins)
+    ? 'Check-out must be after check-in'
+    : null
 
   // Populate form when editing
   useEffect(() => {
@@ -87,6 +124,11 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
     onError: (err) => toast.error(parseApiError(err, 'Failed to save attendance')),
   })
 
+  const onSubmit = (data) => {
+    if (timeError) return
+    mutation.mutate(data)
+  }
+
   return (
     <Modal
       open={open}
@@ -97,8 +139,8 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
         <>
           <button className="btn btn-secondary" onClick={onClose}
             disabled={mutation.isPending}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit(d => mutation.mutate(d))}
-            disabled={mutation.isPending}>
+          <button className="btn btn-primary" onClick={handleSubmit(onSubmit)}
+            disabled={mutation.isPending || !!timeError}>
             {mutation.isPending
               ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving…</>
               : isEdit ? 'Update Record' : 'Save Record'}
@@ -126,18 +168,52 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
           {...register('attendanceDate', { required: 'Date is required' })}
         />
 
-        <div className="grid-2">
-          <BaseInput
-            label="Check-in Time"
-            type="time"
-            {...register('checkInTime')}
-          />
-          <BaseInput
-            label="Check-out Time"
-            type="time"
-            {...register('checkOutTime')}
-          />
+        {/* Time fields with dual-format preview and duration */}
+        <div className="grid-2" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <BaseInput
+              label="Check-in Time (24h)"
+              type="time"
+              {...register('checkInTime')}
+            />
+            {checkInTime && to12hr(checkInTime) && (
+              <div style={{ fontSize: 12, color: 'var(--success)', marginTop: 4, fontWeight: 600 }}>
+                ↳ {to12hr(checkInTime)}
+              </div>
+            )}
+          </div>
+          <div>
+            <BaseInput
+              label="Check-out Time (24h)"
+              type="time"
+              {...register('checkOutTime')}
+            />
+            {checkOutTime && to12hr(checkOutTime) && (
+              <div style={{
+                fontSize: 12,
+                color: timeError ? 'var(--danger)' : 'var(--info)',
+                marginTop: 4,
+                fontWeight: 600,
+              }}>
+                ↳ {to12hr(checkOutTime)}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Duration badge or error */}
+        {(duration || timeError) && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', borderRadius: 8,
+            background: timeError ? 'var(--danger-light)' : 'var(--info-light)',
+            color: timeError ? 'var(--danger)' : 'var(--info)',
+            fontSize: 13, fontWeight: 600,
+          }}>
+            <span>{timeError ? '⚠️' : '⏱'}</span>
+            <span>{timeError ?? `Duration: ${duration}`}</span>
+          </div>
+        )}
 
         <BaseSelect
           label="Status"
