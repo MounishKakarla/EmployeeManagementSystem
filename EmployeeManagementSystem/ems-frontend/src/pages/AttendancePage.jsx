@@ -268,9 +268,11 @@ function computeDur(rec) {
     if (s.includes('T') || s.includes('-')) { const d = new Date(s); return d.getHours()*60+d.getMinutes() }
     const [h,m] = s.split(':').map(Number); return h*60+m
   }
-  const diff = parseMin(outVal) - parseMin(inVal)
-  if (diff <= 0) return null
-  return `${Math.floor(diff/60)}h ${diff%60}m`
+  let diff = parseMin(outVal) - parseMin(inVal)
+  if (diff <= 0) diff += 24 * 60  // overnight shift: checkout is next calendar day
+  if (diff <= 0 || diff > 24 * 60) return null
+  const h = Math.floor(diff / 60), m = diff % 60
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
 const STATUS_COLORS = {

@@ -109,8 +109,8 @@ public class Attendance {
             // Overnight shift — checkout is on the next calendar day
             minutes += 24 * 60;
         }
-        if (minutes <= 0 || minutes > 24 * 60) {
-            this.totalHours = 0.0; // still invalid (same time or > 24h)
+        if (minutes <= 0 || minutes >= 24 * 60) {
+            this.totalHours = 0.0; // invalid: same time (wrapped to 1440) or > 24h
         } else {
             this.totalHours = Math.round((minutes / 60.0) * 100.0) / 100.0;
         }

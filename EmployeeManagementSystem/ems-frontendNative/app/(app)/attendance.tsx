@@ -86,8 +86,11 @@ function computeDur(inVal: string | null | undefined, outVal: string | null | un
     if (s.includes('T')) { const d = new Date(s); return d.getHours() * 60 + d.getMinutes() }
     const [h, m] = s.split(':').map(Number); return h * 60 + m
   }
-  const diff = parseM(outVal) - parseM(inVal)
-  return diff > 0 ? `${Math.floor(diff / 60)}h ${diff % 60}m` : null
+  let diff = parseM(outVal) - parseM(inVal)
+  if (diff <= 0) diff += 24 * 60  // overnight shift: checkout is next calendar day
+  if (diff <= 0 || diff > 24 * 60) return null
+  const h = Math.floor(diff / 60), m = diff % 60
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
 const TABS = [

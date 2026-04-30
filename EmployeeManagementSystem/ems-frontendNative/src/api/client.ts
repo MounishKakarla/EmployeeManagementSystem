@@ -16,6 +16,15 @@ const client = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 90000,
+  // Guard against non-JSON responses (e.g. Render.com cold-start HTML page).
+  // If the body isn't valid JSON, keep it as a string — error handlers check
+  // err.response.data.message and fall back gracefully to their own text.
+  transformResponse: [
+    (data) => {
+      if (typeof data !== 'string') return data
+      try { return JSON.parse(data) } catch { return { message: data } }
+    },
+  ],
 })
 
 // ── Request interceptor: attach Bearer token ──────────────────────────────────

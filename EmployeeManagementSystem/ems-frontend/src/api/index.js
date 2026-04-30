@@ -25,6 +25,14 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
   withCredentials: false,
   timeout: 60000,
+  // Guard against non-JSON responses (HTML error pages from server/proxy).
+  // If the body isn't valid JSON, wrap it so error handlers still get .message.
+  transformResponse: [
+    (data) => {
+      if (typeof data !== 'string') return data
+      try { return JSON.parse(data) } catch { return { message: data } }
+    },
+  ],
 })
 
 // ── Request interceptor: attach Bearer token ───────────────────────────────────
