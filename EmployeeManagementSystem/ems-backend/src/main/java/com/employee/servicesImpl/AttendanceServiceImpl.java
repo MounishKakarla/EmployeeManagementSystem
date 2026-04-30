@@ -81,10 +81,11 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
 
         record.setCheckOutTime(LocalTime.now(IST));
-        // If half a day (< 4 hours), downgrade status
+        // If half a day (< 4 hours), downgrade status — handle overnight (checkout < checkin)
         if (record.getCheckInTime() != null) {
             long minutes = java.time.Duration.between(
                     record.getCheckInTime(), record.getCheckOutTime()).toMinutes();
+            if (minutes <= 0) minutes += 24 * 60; // overnight shift
             if (minutes < 240 && record.getStatus() == AttendanceStatus.PRESENT) {
                 record.setStatus(AttendanceStatus.HALF_DAY);
             }

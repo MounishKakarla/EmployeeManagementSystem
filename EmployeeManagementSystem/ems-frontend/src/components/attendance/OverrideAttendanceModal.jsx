@@ -67,6 +67,26 @@ function fmtDuration(mins) {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
+// Returns { mins, overnight, error } for a check-in / check-out pair.
+// overnight = checkout is next calendar day (checkout < checkin).
+// error is set only for impossible cases (same time = 0h, or > 20h shift).
+function calcShift(inMins, outMins) {
+  if (inMins === null || outMins === null) return null
+  let mins, overnight = false
+  if (outMins > inMins) {
+    mins = outMins - inMins
+  } else if (outMins < inMins) {
+    mins = (24 * 60 - inMins) + outMins   // crosses midnight
+    overnight = true
+  } else {
+    return { mins: 0, overnight: false, error: 'Check-in and check-out cannot be the same time' }
+  }
+  if (mins > 20 * 60) {
+    return { mins, overnight, error: `Shift of ${fmtDuration(mins)} seems too long — please verify` }
+  }
+  return { mins, overnight, error: null }
+}
+
 // ── Dual-format time input component ─────────────────────────────────────────
 // value / onChange use 24h "HH:MM" as canonical form.
 // Both the 24h field and 12h field are editable and stay in sync.
@@ -190,10 +210,7 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
 
   const inMins  = toMins(checkInTime)
   const outMins = toMins(checkOutTime)
-  const duration  = (inMins !== null && outMins !== null) ? fmtDuration(outMins - inMins) : null
-  const timeError = (inMins !== null && outMins !== null && outMins <= inMins)
-    ? 'Check-out must be after check-in'
-    : null
+  const shift   = calcShift(inMins, outMins)
 
   useEffect(() => {
     if (editRecord) {
@@ -245,7 +262,7 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
   })
 
   const onSubmit = (data) => {
-    if (timeError) return
+    if (shift?.error) return
     mutation.mutate(data)
   }
 
@@ -260,7 +277,7 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
           <button className="btn btn-secondary" onClick={onClose}
             disabled={mutation.isPending}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSubmit(onSubmit)}
-            disabled={mutation.isPending || !!timeError}>
+            disabled={mutation.isPending || !!shift?.error}>
             {mutation.isPending
               ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving…</>
               : isEdit ? 'Update Record' : 'Save Record'}
@@ -312,16 +329,32 @@ export default function OverrideAttendanceModal({ open, onClose, editRecord, onS
           )}
         />
 
-        {/* Duration / cross-field error */}
-        {(duration || timeError) && (
+        {/* Duration / overnight indicator / error */}
+        {shift && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: timeError ? 'var(--danger-light)' : 'var(--info-light)',
-            color:      timeError ? 'var(--danger)'       : 'var(--info)',
+            background: shift.error
+              ? 'var(--danger-light)'
+              : shift.overnight
+              ? 'var(--warning-light)'
+              : 'var(--info-light)',
+            color: shift.error
+              ? 'var(--danger)'
+              : shift.overnight
+              ? 'var(--warning)'
+              : 'var(--info)',
           }}>
-            <span>{timeError ? '⚠️' : '⏱'}</span>
-            <span>{timeError ?? `Duration: ${duration}`}</span>
+            <span>
+              {shift.error ? '⚠️' : shift.overnight ? '🌙' : '⏱'}
+            </span>
+            <span>
+              {shift.error
+                ? shift.error
+                : shift.overnight
+                ? `Overnight shift · ${fmtDuration(shift.mins)} (checkout next day)`
+                : `Duration: ${fmtDuration(shift.mins)}`}
+            </span>
           </div>
         )}
 

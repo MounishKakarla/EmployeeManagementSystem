@@ -98,13 +98,21 @@ public class Attendance {
     }
 
     // ── Helper: compute hours from check-in / check-out ───────────────────────
+    // Handles overnight shifts: if checkout < checkin, assume checkout is next day.
     private void computeTotalHours() {
-        if (checkInTime != null && checkOutTime != null
-                && checkOutTime.isAfter(checkInTime)) {
-            long minutes = java.time.Duration.between(checkInTime, checkOutTime).toMinutes();
-            this.totalHours = Math.round((minutes / 60.0) * 100.0) / 100.0;
-        } else {
+        if (checkInTime == null || checkOutTime == null) {
             this.totalHours = 0.0;
+            return;
+        }
+        long minutes = java.time.Duration.between(checkInTime, checkOutTime).toMinutes();
+        if (minutes <= 0) {
+            // Overnight shift — checkout is on the next calendar day
+            minutes += 24 * 60;
+        }
+        if (minutes <= 0 || minutes > 24 * 60) {
+            this.totalHours = 0.0; // still invalid (same time or > 24h)
+        } else {
+            this.totalHours = Math.round((minutes / 60.0) * 100.0) / 100.0;
         }
     }
 }

@@ -38,6 +38,26 @@ function fmtDuration(mins: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
+// Returns { mins, overnight, error } for a check-in / check-out pair.
+// overnight = checkout is next calendar day (checkout HH:MM < checkin HH:MM).
+// error is set only for 0-duration or > 20h (data-entry mistake).
+function calcShift(inMins: number | null, outMins: number | null): { mins: number; overnight: boolean; error: string | null } | null {
+  if (inMins === null || outMins === null) return null
+  let mins: number, overnight = false
+  if (outMins > inMins) {
+    mins = outMins - inMins
+  } else if (outMins < inMins) {
+    mins = (24 * 60 - inMins) + outMins   // crosses midnight → next-day checkout
+    overnight = true
+  } else {
+    return { mins: 0, overnight: false, error: 'Check-in and check-out cannot be the same time' }
+  }
+  if (mins > 20 * 60) {
+    return { mins, overnight, error: `Shift of ${fmtDuration(mins)} seems too long — please verify` }
+  }
+  return { mins, overnight, error: null }
+}
+
 function getStatusStyle(status: string, Colors: any) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     PRESENT:        { label: 'Present',        color: Colors.success, bg: Colors.successLight },
@@ -537,8 +557,7 @@ export default function AttendanceScreen() {
             {(() => {
               const inM   = toMins(ovCheckIn)
               const outM  = toMins(ovCheckOut)
-              const crossErr = inM !== null && outM !== null && outM <= inM
-              const durMins  = inM !== null && outM !== null && outM > inM ? outM - inM : null
+              const shift = calcShift(inM, outM)
 
               return (
                 <>
@@ -588,7 +607,7 @@ export default function AttendanceScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 10, color: Colors.textMuted, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase' }}>24-hour (HH:MM)</Text>
                       <TextInput
-                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: (ovCheckOutErr24 || crossErr) ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: (ovCheckOutErr24 || shift?.error) ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
                         placeholder="18:00"
                         placeholderTextColor={Colors.textMuted}
                         value={ovCheckOut}
@@ -606,7 +625,7 @@ export default function AttendanceScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 10, color: Colors.textMuted, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase' }}>12-hour (H:MM AM/PM)</Text>
                       <TextInput
-                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: (ovCheckOutErr12 || crossErr) ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: (ovCheckOutErr12 || shift?.error) ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
                         placeholder="6:00 PM"
                         placeholderTextColor={Colors.textMuted}
                         value={ovCheckOut12}
@@ -622,20 +641,26 @@ export default function AttendanceScreen() {
                     </View>
                   </View>
 
-                  {/* Duration badge or cross-field error */}
-                  {(durMins !== null || crossErr) && (
+                  {/* Duration / overnight / error badge */}
+                  {shift && (
                     <View style={{
                       flexDirection: 'row', alignItems: 'center', gap: 6,
-                      backgroundColor: crossErr ? Colors.dangerLight : Colors.infoLight,
+                      backgroundColor: shift.error
+                        ? Colors.dangerLight
+                        : shift.overnight ? Colors.warningLight : Colors.infoLight,
                       padding: 10, borderRadius: Radius.sm, marginTop: 4,
                     }}>
                       <Ionicons
-                        name={crossErr ? 'warning-outline' : 'timer-outline'}
+                        name={shift.error ? 'warning-outline' : shift.overnight ? 'moon-outline' : 'timer-outline'}
                         size={14}
-                        color={crossErr ? Colors.danger : Colors.info}
+                        color={shift.error ? Colors.danger : shift.overnight ? Colors.warning : Colors.info}
                       />
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: crossErr ? Colors.danger : Colors.info }}>
-                        {crossErr ? 'Check-out must be after check-in' : `Duration: ${fmtDuration(durMins!)}`}
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: shift.error ? Colors.danger : shift.overnight ? Colors.warning : Colors.info }}>
+                        {shift.error
+                          ? shift.error
+                          : shift.overnight
+                          ? `🌙 Overnight · ${fmtDuration(shift.mins)} (checkout next day)`
+                          : `Duration: ${fmtDuration(shift.mins)}`}
                       </Text>
                     </View>
                   )}
@@ -669,24 +694,25 @@ export default function AttendanceScreen() {
             />
 
             {(() => {
-              const inM  = toMins(ovCheckIn)
-              const outM = toMins(ovCheckOut)
-              const crossErr  = inM !== null && outM !== null && outM <= inM
-              const hasAnyErr = !!ovCheckInErr24 || !!ovCheckInErr12 || !!ovCheckOutErr24 || !!ovCheckOutErr12 || crossErr
+              const inM     = toMins(ovCheckIn)
+              const outM    = toMins(ovCheckOut)
+              const shift   = calcShift(inM, outM)
+              const hasFieldErr = !!ovCheckInErr24 || !!ovCheckInErr12 || !!ovCheckOutErr24 || !!ovCheckOutErr12
+              const blocked = hasFieldErr || !!shift?.error
               return (
                 <TouchableOpacity
                   style={[
                     styles.submitBtn,
                     { backgroundColor: Colors.accent },
-                    (overrideMutation.isPending || hasAnyErr) && { opacity: 0.5 },
+                    (overrideMutation.isPending || blocked) && { opacity: 0.5 },
                   ]}
                   onPress={() => {
-                    if (crossErr) {
-                      Toast.show({ type: 'error', text1: 'Check-out must be after check-in' })
+                    if (hasFieldErr) {
+                      Toast.show({ type: 'error', text1: 'Fix invalid time fields before saving' })
                       return
                     }
-                    if (hasAnyErr) {
-                      Toast.show({ type: 'error', text1: 'Fix invalid time fields before saving' })
+                    if (shift?.error) {
+                      Toast.show({ type: 'error', text1: shift.error })
                       return
                     }
                     overrideMutation.mutate()
