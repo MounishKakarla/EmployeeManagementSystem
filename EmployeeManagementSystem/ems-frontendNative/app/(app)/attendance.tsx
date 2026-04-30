@@ -90,23 +90,85 @@ export default function AttendanceScreen() {
   const [overrideOpen, setOverrideOpen] = useState(false)
 
   // ovEmpId is always locked to a specific employee — set when opening the modal
-  const [ovEmpId, setOvEmpId]     = useState('')
-  const [ovDate, setOvDate]       = useState(dayjs().format('YYYY-MM-DD'))
-  const [ovCheckIn, setOvCheckIn] = useState('09:00')
-  const [ovCheckOut, setOvCheckOut] = useState('18:00')
-  const [ovStatus, setOvStatus]   = useState('PRESENT')
-  const [ovNotes, setOvNotes]     = useState('')
+  const [ovEmpId, setOvEmpId]         = useState('')
+  const [ovDate, setOvDate]           = useState(dayjs().format('YYYY-MM-DD'))
+  const [ovCheckIn,    setOvCheckIn]  = useState('09:00')   // canonical 24h
+  const [ovCheckIn12,  setOvCheckIn12]  = useState('9:00 AM') // display 12h
+  const [ovCheckInErr24,  setOvCheckInErr24]  = useState('')
+  const [ovCheckInErr12,  setOvCheckInErr12]  = useState('')
+  const [ovCheckOut,   setOvCheckOut] = useState('18:00')
+  const [ovCheckOut12, setOvCheckOut12] = useState('6:00 PM')
+  const [ovCheckOutErr24, setOvCheckOutErr24] = useState('')
+  const [ovCheckOutErr12, setOvCheckOutErr12] = useState('')
+  const [ovStatus, setOvStatus]       = useState('PRESENT')
+  const [ovNotes, setOvNotes]         = useState('')
 
   const [rosterDate, setRosterDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [teamStart, setTeamStart] = useState(dayjs().startOf('month').format('YYYY-MM-DD'))
   const [teamEnd, setTeamEnd]     = useState(dayjs().format('YYYY-MM-DD'))
 
+  // ── Dual-format time sync helpers ──────────────────────────────────────────
+  const parse24local = (v: string) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim())
+    if (!m) return null
+    const h = parseInt(m[1], 10), min = parseInt(m[2], 10)
+    if (h > 23 || min > 59) return null
+    return { h, m: min }
+  }
+  const parse12local = (v: string) => {
+    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(v.trim())
+    if (!m) return null
+    let h = parseInt(m[1], 10), min = parseInt(m[2], 10)
+    const period = m[3].toUpperCase()
+    if (h < 1 || h > 12 || min > 59) return null
+    if (period === 'AM' && h === 12) h = 0
+    if (period === 'PM' && h !== 12) h += 12
+    return { h, m: min }
+  }
+  const to24str = (h: number, m: number) =>
+    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+  const to12str = (h: number, m: number) => {
+    const period = h >= 12 ? 'PM' : 'AM'
+    return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${period}`
+  }
+
+  const handleIn24 = (v: string) => {
+    setOvCheckIn(v)
+    if (!v) { setOvCheckInErr24(''); setOvCheckIn12(''); return }
+    const p = parse24local(v)
+    if (p) { setOvCheckInErr24(''); setOvCheckIn12(to12str(p.h, p.m)) }
+    else setOvCheckInErr24('Invalid — use HH:MM (00:00 – 23:59)')
+  }
+  const handleIn12 = (v: string) => {
+    setOvCheckIn12(v)
+    if (!v) { setOvCheckInErr12(''); setOvCheckIn(''); return }
+    const p = parse12local(v)
+    if (p) { setOvCheckInErr12(''); setOvCheckIn(to24str(p.h, p.m)) }
+    else setOvCheckInErr12('Use H:MM AM or H:MM PM')
+  }
+  const handleOut24 = (v: string) => {
+    setOvCheckOut(v)
+    if (!v) { setOvCheckOutErr24(''); setOvCheckOut12(''); return }
+    const p = parse24local(v)
+    if (p) { setOvCheckOutErr24(''); setOvCheckOut12(to12str(p.h, p.m)) }
+    else setOvCheckOutErr24('Invalid — use HH:MM (00:00 – 23:59)')
+  }
+  const handleOut12 = (v: string) => {
+    setOvCheckOut12(v)
+    if (!v) { setOvCheckOutErr12(''); setOvCheckOut(''); return }
+    const p = parse12local(v)
+    if (p) { setOvCheckOutErr12(''); setOvCheckOut(to24str(p.h, p.m)) }
+    else setOvCheckOutErr12('Use H:MM AM or H:MM PM')
+  }
+
   // Open override modal: empId from context (roster row or self), date from context or today
   const openOverride = (empId: string, date?: string) => {
     setOvEmpId(empId)
     setOvDate(date || dayjs().format('YYYY-MM-DD'))
-    setOvCheckIn('09:00')
-    setOvCheckOut('18:00')
+    setOvCheckIn('09:00');   setOvCheckIn12('9:00 AM')
+    setOvCheckOut('18:00');  setOvCheckOut12('6:00 PM')
+    setOvCheckInErr24('');   setOvCheckInErr12('')
+    setOvCheckOutErr24('');  setOvCheckOutErr12('')
     setOvStatus('PRESENT')
     setOvNotes('')
     setOverrideOpen(true)
@@ -471,69 +533,109 @@ export default function AttendanceScreen() {
               </View>
             </View>
 
-            {/* ── Check-in / Check-out time inputs with dual-format preview ── */}
+            {/* ── Check-in time — 24h + 12h editable, bidirectional sync ── */}
             {(() => {
               const inM   = toMins(ovCheckIn)
               const outM  = toMins(ovCheckOut)
-              const hasError = inM !== null && outM !== null && outM <= inM
+              const crossErr = inM !== null && outM !== null && outM <= inM
               const durMins  = inM !== null && outM !== null && outM > inM ? outM - inM : null
+
               return (
                 <>
+                  {/* Check-in row */}
+                  <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-in Time</Text>
                   <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                    {/* Check-in */}
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-in (24h)</Text>
+                      <Text style={{ fontSize: 10, color: Colors.textMuted, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase' }}>24-hour (HH:MM)</Text>
                       <TextInput
-                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: Colors.border, color: Colors.textPrimary }]}
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: ovCheckInErr24 ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
                         placeholder="09:00"
                         placeholderTextColor={Colors.textMuted}
                         value={ovCheckIn}
-                        onChangeText={setOvCheckIn}
+                        onChangeText={handleIn24}
                         keyboardType="numbers-and-punctuation"
                         maxLength={5}
                       />
-                      {to12hr(ovCheckIn) && (
-                        <Text style={{ fontSize: 11, color: Colors.success, marginTop: 3, fontWeight: '600' }}>
-                          ↳ {to12hr(ovCheckIn)}
-                        </Text>
-                      )}
+                      {ovCheckInErr24
+                        ? <Text style={{ fontSize: 10, color: Colors.danger, marginTop: 2 }}>{ovCheckInErr24}</Text>
+                        : ovCheckIn && !ovCheckInErr24 && parse24local(ovCheckIn) && (
+                          <Text style={{ fontSize: 10, color: Colors.success, marginTop: 2, fontWeight: '600' }}>✓ Valid</Text>
+                        )
+                      }
                     </View>
-                    {/* Check-out */}
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Check-out (24h)</Text>
+                      <Text style={{ fontSize: 10, color: Colors.textMuted, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase' }}>12-hour (H:MM AM/PM)</Text>
                       <TextInput
-                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: hasError ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
-                        placeholder="18:00"
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: ovCheckInErr12 ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
+                        placeholder="9:00 AM"
                         placeholderTextColor={Colors.textMuted}
-                        value={ovCheckOut}
-                        onChangeText={setOvCheckOut}
-                        keyboardType="numbers-and-punctuation"
-                        maxLength={5}
+                        value={ovCheckIn12}
+                        onChangeText={handleIn12}
+                        maxLength={8}
                       />
-                      {to12hr(ovCheckOut) && (
-                        <Text style={{ fontSize: 11, color: hasError ? Colors.danger : Colors.info, marginTop: 3, fontWeight: '600' }}>
-                          ↳ {to12hr(ovCheckOut)}
-                        </Text>
-                      )}
+                      {ovCheckInErr12
+                        ? <Text style={{ fontSize: 10, color: Colors.danger, marginTop: 2 }}>{ovCheckInErr12}</Text>
+                        : ovCheckIn12 && !ovCheckInErr12 && parse12local(ovCheckIn12) && (
+                          <Text style={{ fontSize: 10, color: Colors.success, marginTop: 2, fontWeight: '600' }}>✓ Valid</Text>
+                        )
+                      }
                     </View>
                   </View>
 
-                  {/* Duration badge or error */}
-                  {(durMins !== null || hasError) && (
+                  {/* Check-out row */}
+                  <Text style={[styles.fieldLabel, { color: Colors.textMuted, marginTop: Spacing.sm }]}>Check-out Time</Text>
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: Colors.textMuted, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase' }}>24-hour (HH:MM)</Text>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: (ovCheckOutErr24 || crossErr) ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
+                        placeholder="18:00"
+                        placeholderTextColor={Colors.textMuted}
+                        value={ovCheckOut}
+                        onChangeText={handleOut24}
+                        keyboardType="numbers-and-punctuation"
+                        maxLength={5}
+                      />
+                      {ovCheckOutErr24
+                        ? <Text style={{ fontSize: 10, color: Colors.danger, marginTop: 2 }}>{ovCheckOutErr24}</Text>
+                        : ovCheckOut && !ovCheckOutErr24 && parse24local(ovCheckOut) && (
+                          <Text style={{ fontSize: 10, color: Colors.success, marginTop: 2, fontWeight: '600' }}>✓ Valid</Text>
+                        )
+                      }
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: Colors.textMuted, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase' }}>12-hour (H:MM AM/PM)</Text>
+                      <TextInput
+                        style={[styles.textInput, { backgroundColor: Colors.bgTertiary, borderColor: (ovCheckOutErr12 || crossErr) ? Colors.danger : Colors.border, color: Colors.textPrimary }]}
+                        placeholder="6:00 PM"
+                        placeholderTextColor={Colors.textMuted}
+                        value={ovCheckOut12}
+                        onChangeText={handleOut12}
+                        maxLength={8}
+                      />
+                      {ovCheckOutErr12
+                        ? <Text style={{ fontSize: 10, color: Colors.danger, marginTop: 2 }}>{ovCheckOutErr12}</Text>
+                        : ovCheckOut12 && !ovCheckOutErr12 && parse12local(ovCheckOut12) && (
+                          <Text style={{ fontSize: 10, color: Colors.success, marginTop: 2, fontWeight: '600' }}>✓ Valid</Text>
+                        )
+                      }
+                    </View>
+                  </View>
+
+                  {/* Duration badge or cross-field error */}
+                  {(durMins !== null || crossErr) && (
                     <View style={{
                       flexDirection: 'row', alignItems: 'center', gap: 6,
-                      backgroundColor: hasError ? Colors.dangerLight : Colors.infoLight,
-                      padding: 10, borderRadius: Radius.sm, marginTop: 2,
+                      backgroundColor: crossErr ? Colors.dangerLight : Colors.infoLight,
+                      padding: 10, borderRadius: Radius.sm, marginTop: 4,
                     }}>
                       <Ionicons
-                        name={hasError ? 'warning-outline' : 'timer-outline'}
+                        name={crossErr ? 'warning-outline' : 'timer-outline'}
                         size={14}
-                        color={hasError ? Colors.danger : Colors.info}
+                        color={crossErr ? Colors.danger : Colors.info}
                       />
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: hasError ? Colors.danger : Colors.info }}>
-                        {hasError
-                          ? 'Check-out must be after check-in'
-                          : `Duration: ${fmtDuration(durMins!)}`}
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: crossErr ? Colors.danger : Colors.info }}>
+                        {crossErr ? 'Check-out must be after check-in' : `Duration: ${fmtDuration(durMins!)}`}
                       </Text>
                     </View>
                   )}
@@ -569,22 +671,27 @@ export default function AttendanceScreen() {
             {(() => {
               const inM  = toMins(ovCheckIn)
               const outM = toMins(ovCheckOut)
-              const hasTimeError = inM !== null && outM !== null && outM <= inM
+              const crossErr  = inM !== null && outM !== null && outM <= inM
+              const hasAnyErr = !!ovCheckInErr24 || !!ovCheckInErr12 || !!ovCheckOutErr24 || !!ovCheckOutErr12 || crossErr
               return (
                 <TouchableOpacity
                   style={[
                     styles.submitBtn,
                     { backgroundColor: Colors.accent },
-                    (overrideMutation.isPending || hasTimeError) && { opacity: 0.5 },
+                    (overrideMutation.isPending || hasAnyErr) && { opacity: 0.5 },
                   ]}
                   onPress={() => {
-                    if (hasTimeError) {
+                    if (crossErr) {
                       Toast.show({ type: 'error', text1: 'Check-out must be after check-in' })
+                      return
+                    }
+                    if (hasAnyErr) {
+                      Toast.show({ type: 'error', text1: 'Fix invalid time fields before saving' })
                       return
                     }
                     overrideMutation.mutate()
                   }}
-                  disabled={overrideMutation.isPending || !ovEmpId || hasTimeError}
+                  disabled={overrideMutation.isPending || !ovEmpId}
                 >
                   <Text style={styles.submitBtnText}>
                     {overrideMutation.isPending ? 'Saving…' : 'Save Override'}
