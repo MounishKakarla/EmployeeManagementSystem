@@ -52,7 +52,7 @@ export default function InactiveEmployeesTable({allEmployees,isLoading,error,ref
                 const goTo=()=>openEmployeeSheet(emp.empId,true)
                 return(<tr key={emp.empId} onClick={goTo} style={{cursor:'pointer'}}>
                   <td style={{fontFamily:'var(--font-display)',fontWeight:600,fontSize:13}}>{emp.empId}</td>
-                  <td><div style={{display:'flex',alignItems:'center',gap:10}}><div className="avatar" style={{background:'var(--bg-tertiary)',color:'var(--text-muted)'}}>{initials}</div><div><div style={{fontWeight:500,fontSize:14}}>{emp.name}</div><div style={{fontSize:12,color:'var(--text-muted)'}}>{emp.companyEmail}</div></div></div></td>
+                  <td><div style={{display:'flex',alignItems:'center',gap:10}}>{emp.profileImage ? <img src={emp.profileImage} alt={emp.name} style={{width:32,height:32,borderRadius:'50%',objectFit:'cover',border:'2px solid var(--border)',opacity:0.6}}/> : <div className="avatar" style={{background:'var(--bg-tertiary)',color:'var(--text-muted)'}}>{initials}</div>}<div><div style={{fontWeight:500,fontSize:14}}>{emp.name}</div><div style={{fontSize:12,color:'var(--text-muted)'}}>{emp.companyEmail}</div></div></div></td>
                   <td><div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{depts.slice(0,2).map(d=><span key={d} className="badge badge-neutral" style={{fontSize:11}}>{d}</span>)}{depts.length>2&&<span className="badge badge-neutral" style={{fontSize:11}}>+{depts.length-2}</span>}</div></td>
                   <td style={{color:'var(--text-secondary)',fontSize:13}}>{desigs.slice(0,2).join(', ')}{desigs.length>2?` +${desigs.length-2}`:''}</td>
                   <td style={{color:'var(--text-muted)',fontSize:13}}>{formatDate(emp.dateOfJoin)}</td>

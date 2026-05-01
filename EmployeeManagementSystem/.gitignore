@@ -91,3 +91,9 @@
 # App Specific
 **/ems-frontendNative/.npmrc
 **/check-password.js
+
+# Playwright Test Outputs
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/playwright/.cache/

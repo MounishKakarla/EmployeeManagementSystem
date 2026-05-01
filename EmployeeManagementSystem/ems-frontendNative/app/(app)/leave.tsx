@@ -1,6 +1,6 @@
 // app/(app)/leave.tsx — Leave Screen with Manager Review
 import { useState, useMemo, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, RefreshControl, ActivityIndicator, Image } from 'react-native'
 import CalendarPicker from '../../src/components/CalendarPicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -312,11 +312,15 @@ export default function LeaveScreen() {
                 return (
                   <View key={l.id} style={[styles.reviewCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                     <View style={styles.reviewHeader}>
-                      <View style={[styles.reviewAvatar, { backgroundColor: Colors.accentLight }]}>
-                        <Text style={[styles.reviewAvatarText, { color: Colors.accent }]}>
-                          {l.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
-                        </Text>
-                      </View>
+                      {l.profileImage ? (
+                        <Image source={{ uri: l.profileImage }} style={styles.reviewAvatar} />
+                      ) : (
+                        <View style={[styles.reviewAvatar, { backgroundColor: Colors.accentLight }]}>
+                          <Text style={[styles.reviewAvatarText, { color: Colors.accent }]}>
+                            {l.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
+                          </Text>
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.reviewName, { color: Colors.textPrimary }]}>{l.employeeName || l.empId}</Text>
                         <Text style={[styles.reviewEmpId, { color: Colors.textMuted }]}>{l.empId}</Text>

@@ -305,9 +305,13 @@ export default function DashboardPage() {
                         <tr key={emp.empId} style={{ cursor: 'pointer' }} onClick={() => openEmployeeSheet(emp.empId)}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div className="avatar">
-                                {emp.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
-                              </div>
+                              {emp.profileImage ? (
+                                <img src={emp.profileImage} alt={emp.name} style={{ width:32, height:32, borderRadius:'50%', objectFit:'cover', border:'2px solid var(--border)' }}/>
+                              ) : (
+                                <div className="avatar">
+                                  {emp.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
+                                </div>
+                              )}
                               <div>
                                 <div style={{ fontWeight: 500 }}>{emp.name}</div>
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{emp.companyEmail}</div>

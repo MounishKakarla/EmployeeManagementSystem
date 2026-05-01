@@ -511,6 +511,7 @@ public class LeaveServiceImpl implements LeaveService {
                 .id(r.getId()).empId(r.getEmployee().getEmpId())
                 .employeeName(r.getEmployee().getName())
                 .department(r.getEmployee().getDepartment())
+                .profileImage(r.getEmployee().getProfileImage())
                 .leaveType(r.getLeaveType()).startDate(r.getStartDate())
                 .endDate(r.getEndDate()).daysRequested(r.getDaysRequested())
                 .reason(r.getReason()).status(r.getStatus())

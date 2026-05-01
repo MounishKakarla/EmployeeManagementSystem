@@ -1,5 +1,5 @@
 // app/(app)/timesheets.tsx — Timesheet Screen with Team Review
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl, Modal, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, RefreshControl, Modal, ActivityIndicator, Image } from 'react-native'
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -872,9 +872,13 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
                 return (
                   <View key={t.id} style={[styles.reviewCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                     <View style={styles.reviewHeader}>
-                      <View style={[styles.reviewAvatar, { backgroundColor: Colors.accentLight }]}>
-                        <Text style={[styles.reviewAvatarText, { color: Colors.accent }]}>{t.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}</Text>
-                      </View>
+                      {t.profileImage ? (
+                        <Image source={{ uri: t.profileImage }} style={styles.reviewAvatar} />
+                      ) : (
+                        <View style={[styles.reviewAvatar, { backgroundColor: Colors.accentLight }]}>
+                          <Text style={[styles.reviewAvatarText, { color: Colors.accent }]}>{t.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}</Text>
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.reviewName, { color: Colors.textPrimary }]}>{t.employeeName || t.empId}</Text>
                         <Text style={[styles.reviewEmpId, { color: Colors.textMuted }]}>{t.empId} · {fmtWeek(t)}</Text>

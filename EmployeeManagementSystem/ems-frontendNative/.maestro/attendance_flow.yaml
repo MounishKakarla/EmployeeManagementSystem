@@ -1,0 +1,39 @@
+appId: com.tektalis.ems
+---
+# ──────────────────────────────────────────────
+#  Maestro E2E Flow: Attendance – Check In / Check Out
+#  Depends on: login_flow.yaml (user must be logged in)
+#  Run with: maestro test attendance_flow.yaml
+# ──────────────────────────────────────────────
+- launchApp
+- assertVisible: "Today"
+
+# Navigate to the Attendance tab (bottom nav)
+- tapOn:
+    text: "Attendance"
+- assertVisible:
+    text: "My Attendance"
+    timeout: 5000
+
+# Verify the Today card is visible
+- assertVisible: "Check In"
+- assertVisible: "Check Out"
+
+# If "Check In" button is on screen, tap it
+- runFlow:
+    when:
+      visible:
+        text: "Check In"
+    commands:
+      - tapOn:
+          text: "Check In"
+      - assertVisible:
+          text: "Checked in!"
+          timeout: 6000
+
+# Daily Roster tab (visible for Admin/Manager)
+- tapOn:
+    text: "Daily Roster"
+- assertVisible:
+    text: "Roster for"
+    timeout: 5000

@@ -1,0 +1,37 @@
+appId: com.tektalis.ems
+---
+# ──────────────────────────────────────────────
+#  Maestro E2E Flow: Leave Screen
+#  Run with: maestro test leave_flow.yaml
+# ──────────────────────────────────────────────
+- launchApp
+- assertVisible: "Today"
+
+# Navigate to Leave tab
+- tapOn:
+    text: "Leave"
+- assertVisible:
+    text: "My Leaves"
+    timeout: 5000
+
+# Verify balance cards are visible
+- assertVisible: "Annual Leave"
+- assertVisible: "Sick Leave"
+
+# Tap Apply Leave
+- tapOn:
+    text: "Apply Leave"
+- assertVisible:
+    text: "Apply for Leave"
+    timeout: 5000
+
+# Try to submit empty form and verify validation
+- tapOn:
+    text: "Submit Request"
+- assertVisible:
+    text: "required"
+    timeout: 3000
+
+# Dismiss modal
+- tapOn:
+    text: "Cancel"

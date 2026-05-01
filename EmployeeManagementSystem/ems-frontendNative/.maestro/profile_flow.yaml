@@ -1,0 +1,42 @@
+appId: com.tektalis.ems
+---
+# ──────────────────────────────────────────────
+#  Maestro E2E Flow: Profile Screen
+#  Run with: maestro test profile_flow.yaml
+# ──────────────────────────────────────────────
+- launchApp
+- assertVisible: "Today"
+
+# Navigate to Profile tab
+- tapOn:
+    text: "Profile"
+- assertVisible:
+    text: "TT0001"
+    timeout: 5000
+
+# Verify key profile fields are rendered
+- assertVisible: "Department"
+- assertVisible: "Designation"
+
+# Open Edit Profile modal
+- tapOn:
+    text: "Edit"
+- assertVisible:
+    text: "Save"
+    timeout: 5000
+- tapOn:
+    text: "Cancel"
+
+# Open Change Password section
+- tapOn:
+    text: "Change Password"
+- assertVisible:
+    text: "Current Password"
+    timeout: 5000
+
+# Try submitting empty → validation
+- tapOn:
+    text: "Update"
+- assertVisible:
+    text: "required"
+    timeout: 3000

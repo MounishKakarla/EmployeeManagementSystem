@@ -1,0 +1,25 @@
+appId: com.tektalis.ems
+---
+# ──────────────────────────────────────────────
+#  Maestro E2E Flow: Login Screen
+#  Run with: maestro test login_flow.yaml
+# ──────────────────────────────────────────────
+- launchApp
+- assertVisible: "EMS"
+
+# Tap the Employee ID input and type credentials
+- tapOn:
+    text: "Employee ID"
+- typeText: "TT0001"
+
+- tapOn:
+    text: "Password"
+- typeText: "Mouni@1702"
+
+- tapOn:
+    text: "Sign In"
+
+# After login, the home screen / dashboard must appear
+- assertVisible:
+    text: "Today"
+    timeout: 10000

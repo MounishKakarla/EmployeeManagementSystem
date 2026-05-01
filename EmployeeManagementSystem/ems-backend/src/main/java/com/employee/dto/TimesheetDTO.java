@@ -16,6 +16,7 @@ public class TimesheetDTO {
     private String          empId;
     private String          employeeName;
     private String          department;
+    private String          profileImage;
     private LocalDate       weekStartDate;
     private String          project;
     private String          taskDescription;

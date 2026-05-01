@@ -176,7 +176,11 @@ export default function AppLayout() {
               aria-label="User Account Menu"
               aria-expanded={avatarOpen}
             >
-              <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>{initials}</div>
+              {user?.profileImage ? (
+                <img src={user.profileImage} alt={user.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>{initials}</div>
+              )}
               <ChevronDown size={13} style={{
                 transition: 'transform 0.2s',
                 color: 'var(--text-muted)',
@@ -187,7 +191,11 @@ export default function AppLayout() {
             {avatarOpen && (
               <div className="avatar-dropdown glass-panel">
                 <div className="avatar-dropdown-header">
-                  <div className="avatar" style={{ width: 44, height: 44, fontSize: 16, flexShrink: 0 }}>{initials}</div>
+                  {user?.profileImage ? (
+                    <img src={user.profileImage} alt={user.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div className="avatar" style={{ width: 44, height: 44, fontSize: 16, flexShrink: 0 }}>{initials}</div>
+                  )}
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{user?.name || user?.empId}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

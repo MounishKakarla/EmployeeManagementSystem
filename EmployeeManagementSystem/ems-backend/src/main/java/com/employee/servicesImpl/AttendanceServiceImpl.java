@@ -285,6 +285,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .empId(a.getEmployee().getEmpId())
                 .employeeName(a.getEmployee().getName())
                 .department(a.getEmployee().getDepartment())
+                .profileImage(a.getEmployee().getProfileImage())
                 .attendanceDate(a.getAttendanceDate())
                 .checkInTime(a.getCheckInTime())
                 .checkOutTime(a.getCheckOutTime())

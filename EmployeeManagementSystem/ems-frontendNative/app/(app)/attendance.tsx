@@ -1,6 +1,6 @@
 // app/(app)/attendance.tsx — Attendance Screen with Admin/Manager tabs
 import { useState, useCallback } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput, Modal, ActivityIndicator, Platform } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput, Modal, ActivityIndicator, Platform, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
@@ -437,11 +437,15 @@ export default function AttendanceScreen() {
                 const s = getStatusStyle(r.status, Colors)
                 return (
                   <View key={r.id ?? i} style={[styles.rosterRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
-                    <View style={[styles.rosterAvatar, { backgroundColor: Colors.accentLight }]}>
-                      <Text style={[styles.rosterAvatarText, { color: Colors.accent }]}>
-                        {r.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
-                      </Text>
-                    </View>
+                    {r.profileImage ? (
+                      <Image source={{ uri: r.profileImage }} style={styles.rosterAvatar} />
+                    ) : (
+                      <View style={[styles.rosterAvatar, { backgroundColor: Colors.accentLight }]}>
+                        <Text style={[styles.rosterAvatarText, { color: Colors.accent }]}>
+                          {r.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
+                        </Text>
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rosterName, { color: Colors.textPrimary }]}>{r.employeeName || r.empId}</Text>
                       <Text style={[styles.rosterTimes, { color: Colors.textSecondary }]}>
@@ -500,11 +504,15 @@ export default function AttendanceScreen() {
                 const rDur = computeDur(r.checkInTime || r.checkIn, r.checkOutTime || r.checkOut)
                 return (
                   <View key={r.id ?? i} style={[styles.rosterRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
-                    <View style={[styles.rosterAvatar, { backgroundColor: Colors.accentLight }]}>
-                      <Text style={[styles.rosterAvatarText, { color: Colors.accent }]}>
-                        {r.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
-                      </Text>
-                    </View>
+                    {r.profileImage ? (
+                      <Image source={{ uri: r.profileImage }} style={styles.rosterAvatar} />
+                    ) : (
+                      <View style={[styles.rosterAvatar, { backgroundColor: Colors.accentLight }]}>
+                        <Text style={[styles.rosterAvatarText, { color: Colors.accent }]}>
+                          {r.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
+                        </Text>
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rosterName, { color: Colors.textPrimary }]}>{r.employeeName || r.empId}</Text>
                       <Text style={[styles.rosterTimes, { color: Colors.textSecondary }]}>

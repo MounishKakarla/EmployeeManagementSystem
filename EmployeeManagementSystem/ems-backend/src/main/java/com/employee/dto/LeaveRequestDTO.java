@@ -19,6 +19,7 @@ public class LeaveRequestDTO {
     private String      empId;
     private String      employeeName;
     private String      department;
+    private String      profileImage;
     private LeaveType   leaveType;
     private LocalDate   startDate;
     private LocalDate   endDate;

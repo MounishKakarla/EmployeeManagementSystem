@@ -293,6 +293,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         return TimesheetDTO.builder()
                 .id(t.getId()).empId(t.getEmployee().getEmpId())
                 .employeeName(t.getEmployee().getName()).department(t.getEmployee().getDepartment())
+                .profileImage(t.getEmployee().getProfileImage())
                 .weekStartDate(t.getWeekStartDate()).project(t.getProject())
                 .taskDescription(t.getTaskDescription())
                 .mondayHours(t.getMondayHours()).tuesdayHours(t.getTuesdayHours())

@@ -24,6 +24,7 @@ public class AttendanceDTO {
     private String empId;
     private String employeeName;
     private String department;
+    private String profileImage;
 
     // ── Attendance details ─────────────────────────────────────────────────────
     private LocalDate attendanceDate;

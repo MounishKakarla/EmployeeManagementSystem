@@ -209,7 +209,11 @@ export default function EmployeeSideSheet({ empId, isInactiveView, onClose }) {
               <div className="card" style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                    <div className="avatar avatar-xl" style={{ background: isInactiveView ? 'var(--bg-tertiary)' : 'var(--accent-light)', color: isInactiveView ? 'var(--text-muted)' : 'var(--accent)', fontSize: 28 }}>{initials}</div>
+                    {employee.profileImage ? (
+                      <img src={employee.profileImage} alt={employee.name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0 }} />
+                    ) : (
+                      <div className="avatar avatar-xl" style={{ background: isInactiveView ? 'var(--bg-tertiary)' : 'var(--accent-light)', color: isInactiveView ? 'var(--text-muted)' : 'var(--accent)', fontSize: 28, width: 64, height: 64 }}>{initials}</div>
+                    )}
                     <div>
                       <h2 style={{ fontSize: 22, marginBottom: 4 }}>{employee.name}</h2>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
