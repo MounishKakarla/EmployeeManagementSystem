@@ -86,6 +86,8 @@ public class EmployeeServiceImpl implements EmployeeService {
             return UserRoles.builder().employee(saved).role(role)
                     .id(new UserRoleId(saved.getEmpId(), role.getRoleId())).build();
         }).collect(Collectors.toSet());
+        
+        userRoleRepository.saveAll(userRoles);
         saved.setRoles(userRoles);
 
         emailService.sendLoginDetails(saved.getPersonalEmail(), saved.getEmpId(),

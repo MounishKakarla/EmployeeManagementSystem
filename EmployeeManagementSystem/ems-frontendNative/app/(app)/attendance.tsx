@@ -53,8 +53,8 @@ function calcShift(inMins: number | null, outMins: number | null): { mins: numbe
   } else {
     return { mins: 0, overnight: false, error: 'Check-in and check-out cannot be the same time' }
   }
-  if (mins > 20 * 60) {
-    return { mins, overnight, error: `Shift of ${fmtDuration(mins)} seems too long — please verify` }
+  if (mins >= 24 * 60) {
+    return { mins, overnight, error: `Working hours cannot exceed 23:59 hours` }
   }
   return { mins, overnight, error: null }
 }

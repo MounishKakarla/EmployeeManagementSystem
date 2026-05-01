@@ -17,11 +17,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     @Modifying
     @Transactional
-    @Query("UPDATE Notification n SET n.read = true WHERE n.id = :id AND n.empId = :empId")
+    @Query("DELETE FROM Notification n WHERE n.id = :id AND n.empId = :empId")
     void markAsRead(Long id, String empId);
 
     @Modifying
     @Transactional
-    @Query("UPDATE Notification n SET n.read = true WHERE n.empId = :empId AND n.read = false")
+    @Query("DELETE FROM Notification n WHERE n.empId = :empId")
     void markAllAsRead(String empId);
 }

@@ -53,6 +53,7 @@ export default function EmployeeSideSheet({ empId, isInactiveView, onClose }) {
 
   const employee = data?.data
   const currentRoles = rolesData?.data || employee?.roles || []
+  console.log("DEBUG_ROLES: rolesData=", rolesData, "employee=", employee, "currentRoles=", currentRoles)
   const assignableRoles = ALL_ROLES.filter(r => !currentRoles.includes(r))
   const removableRoles = ALL_ROLES.filter(r => currentRoles.includes(r))
   const isSelf = user?.empId === employee?.empId
