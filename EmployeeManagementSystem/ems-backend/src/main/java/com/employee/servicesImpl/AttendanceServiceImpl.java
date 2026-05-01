@@ -39,15 +39,29 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional
     public AttendanceDTO checkIn(String empId, String notes) {
         Employee employee = getActiveEmployee(empId);
-        LocalDate today = LocalDate.now(IST);
+        LocalDate today   = LocalDate.now(IST);
+        LocalTime now     = LocalTime.now(IST);
 
-        if (attendanceRepository.existsByEmployeeEmpIdAndAttendanceDate(empId, today)) {
-            throw new IllegalStateException(
-                    "Already checked in today. Use check-out or contact your manager to update.");
+        java.util.Optional<Attendance> existing =
+                attendanceRepository.findByEmployeeEmpIdAndAttendanceDate(empId, today);
+
+        if (existing.isPresent()) {
+            Attendance record = existing.get();
+            if (record.getCheckInTime() != null) {
+                // Genuinely already checked in
+                throw new IllegalStateException(
+                        "You have already checked in today. Use check-out or contact your manager.");
+            }
+            // Auto-created record (ABSENT/WEEKEND/HOLIDAY from scheduler) — allow late check-in
+            record.setCheckInTime(now);
+            record.setStatus(now.isAfter(LocalTime.of(9, 30))
+                    ? AttendanceStatus.LATE : AttendanceStatus.PRESENT);
+            record.setRecordedBy(empId);
+            if (notes != null && !notes.isBlank()) record.setNotes(notes);
+            return toDTO(attendanceRepository.save(record));
         }
 
-        LocalTime now = LocalTime.now(IST);
-        // Late if check-in is after 09:30
+        // No record yet — create fresh check-in
         AttendanceStatus status = now.isAfter(LocalTime.of(9, 30))
                 ? AttendanceStatus.LATE
                 : AttendanceStatus.PRESENT;
@@ -76,8 +90,13 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .orElseThrow(() -> new IllegalStateException(
                         "No check-in record found for today. Please check in first."));
 
+        if (record.getCheckInTime() == null) {
+            throw new IllegalStateException("You have not checked in today yet.");
+        }
         if (record.getCheckOutTime() != null) {
-            throw new IllegalStateException("Already checked out today.");
+            throw new IllegalStateException(
+                "You have already checked out today at " + record.getCheckOutTime().toString().substring(0, 5) +
+                ". Contact your manager if you need to update your check-out time.");
         }
 
         record.setCheckOutTime(LocalTime.now(IST));

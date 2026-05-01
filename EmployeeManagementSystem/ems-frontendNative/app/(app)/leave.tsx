@@ -106,6 +106,7 @@ export default function LeaveScreen() {
   const [leaveConfirm, setLeaveConfirm] = useState<ConfirmLeave>(null)
   const [infoMsg, setInfoMsg]           = useState<string | null>(null)
   const [modalNotes, setModalNotes]     = useState('')
+  const [formError, setFormError]       = useState<string | null>(null)
 
   // Working-day preview — fetch holidays for the year the leave starts in
   const leaveYear = startDate ? new Date(startDate).getFullYear() : new Date().getFullYear()
@@ -153,12 +154,13 @@ export default function LeaveScreen() {
     onSuccess: () => {
       Toast.show({ type: 'success', text1: 'Leave request submitted!' })
       setModalOpen(false); setLeaveType('ANNUAL'); setStartDate(''); setEndDate(''); setReason('')
-      setShowStartPicker(false); setShowEndPicker(false)
+      setShowStartPicker(false); setShowEndPicker(false); setFormError(null)
       qc.invalidateQueries({ queryKey: ['leave-balance'] })
       qc.invalidateQueries({ queryKey: ['my-leaves'] })
     },
     onError: (err: any) => {
-      Toast.show({ type: 'error', text1: 'Failed', text2: err?.response?.data?.message || 'Something went wrong' })
+      const msg = err?.response?.data?.message || 'Something went wrong. Please try again.'
+      setFormError(msg)
     },
   })
 
@@ -175,7 +177,7 @@ export default function LeaveScreen() {
       qc.invalidateQueries({ queryKey: ['my-leaves'] })
     },
     onError: (err: any) => {
-      Toast.show({ type: 'error', text1: 'Review failed', text2: err?.response?.data?.message || 'Try again' })
+      Toast.show({ type: 'error', text1: 'Could not submit review.', text2: err?.response?.data?.message || 'Please try again.' })
     },
   })
 
@@ -222,7 +224,7 @@ export default function LeaveScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.bgPrimary }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Leave Management</Text>
-        <TouchableOpacity style={[styles.requestBtn, { backgroundColor: Colors.accent }]} onPress={() => setModalOpen(true)}>
+        <TouchableOpacity style={[styles.requestBtn, { backgroundColor: Colors.accent }]} onPress={() => { setFormError(null); setModalOpen(true) }}>
           <Ionicons name="add" size={18} color="#fff" />
           <Text style={styles.requestBtnText}>Request</Text>
         </TouchableOpacity>
@@ -426,7 +428,7 @@ export default function LeaveScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: Spacing.md, gap: Spacing.md }}>
+          <ScrollView contentContainerStyle={{ padding: Spacing.md, gap: Spacing.md }} keyboardShouldPersistTaps="handled">
             <Text style={[styles.fieldLabel, { color: Colors.textMuted }]}>Leave Type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {availableLeaveTypes.map(t => (
@@ -517,9 +519,22 @@ export default function LeaveScreen() {
               </View>
             )}
 
+            {/* Inline error — visible even when modal is open (unlike Toast) */}
+            {formError && (
+              <View style={[styles.inlineError, { backgroundColor: Colors.dangerLight ?? '#fee2e2', borderColor: Colors.danger }]}>
+                <Ionicons name="alert-circle-outline" size={16} color={Colors.danger} />
+                <Text style={[styles.inlineErrorText, { color: Colors.danger }]}>{formError}</Text>
+              </View>
+            )}
+
             <TouchableOpacity
               style={[styles.submitBtn, { backgroundColor: Colors.accent }, submitMutation.isPending && { opacity: 0.6 }]}
-              onPress={() => submitMutation.mutate()}
+              onPress={() => {
+                if (!startDate) { setFormError('Please select a start date.'); return }
+                if (!endDate)   { setFormError('Please select an end date.'); return }
+                setFormError(null)
+                submitMutation.mutate()
+              }}
               disabled={submitMutation.isPending}
             >
               <Text style={styles.submitBtnText}>
@@ -631,6 +646,8 @@ const styles = StyleSheet.create({
   submitBtnText:   { color: '#fff', fontWeight: FontWeight.bold, fontSize: FontSize.md },
   dayPreview:      { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: Radius.sm },
   dayPreviewText:  { fontSize: FontSize.sm, fontWeight: FontWeight.medium, flex: 1 },
+  inlineError:     { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: Radius.sm, borderWidth: 1 },
+  inlineErrorText: { fontSize: FontSize.sm, flex: 1, fontWeight: FontWeight.medium },
 
   // Review card
   reviewCard:      { marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, gap: Spacing.sm },

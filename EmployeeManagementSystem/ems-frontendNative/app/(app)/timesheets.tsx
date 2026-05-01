@@ -241,14 +241,14 @@ export default function TimesheetScreen() {
   const handleSave = () => {
     setSaveAttempted(true)
     if (!projectName.trim()) {
-      Toast.show({ type: 'error', text1: 'Project name is required' }); return
+      Toast.show({ type: 'error', text1: 'Please enter a project name.' }); return
     }
     if (!taskDesc.trim()) {
-      Toast.show({ type: 'error', text1: 'Task description is required' }); return
+      Toast.show({ type: 'error', text1: 'Please describe the task or work done.' }); return
     }
     const anyHours = DAYS.some(d => parseFloat(dayHoursMap[d.key] || '0') > 0)
     if (!anyHours) {
-      Toast.show({ type: 'error', text1: 'Enter hours for at least one day' }); return
+      Toast.show({ type: 'error', text1: 'Please log hours for at least one day of the week.' }); return
     }
     saveMutation.mutate()
   }
@@ -271,7 +271,7 @@ export default function TimesheetScreen() {
       qc.invalidateQueries({ queryKey: ['timesheet-week'] })
       qc.invalidateQueries({ queryKey: ['my-timesheets'] })
     },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to save entry' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Could not save timesheet entry. Please try again.' }),
   })
 
   const changeWeek = (offset: number) => {
@@ -285,7 +285,7 @@ export default function TimesheetScreen() {
       qc.invalidateQueries({ queryKey: ['timesheet-week'] })
       qc.invalidateQueries({ queryKey: ['my-timesheets'] })
     },
-    onError:   (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Submit failed. Please fill all working days.', visibilityTime: 4000 }),
+    onError:   (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Submission failed. Make sure all worked days have hours logged.', visibilityTime: 5000 }),
   })
 
   const reviewMutation = useMutation({
@@ -296,7 +296,7 @@ export default function TimesheetScreen() {
       qc.invalidateQueries({ queryKey: ['team-timesheets'] })
       qc.invalidateQueries({ queryKey: ['timesheet-week'] })
     },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Review failed' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Could not submit review. Please try again.' }),
   })
 
   const deleteMutation = useMutation({
@@ -308,7 +308,7 @@ export default function TimesheetScreen() {
       qc.invalidateQueries({ queryKey: ['timesheet-week'] })
       qc.invalidateQueries({ queryKey: ['my-timesheets'] })
     },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Delete failed' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Could not delete this entry. Please try again.' }),
   })
 
   const handleTsReview = (t: any, action: string) => {

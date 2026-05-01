@@ -205,6 +205,14 @@ export const importAPI = {
   }),
 }
 
+// ── Notification APIs ──────────────────────────────────────────────────────────
+export const notificationAPI = {
+  getMy:          (params) => api.get('/ems/notifications/my', { params }),
+  getUnreadCount: ()       => api.get('/ems/notifications/unread-count'),
+  markRead:       (id)     => api.put(`/ems/notifications/${id}/read`),
+  markAllRead:    ()       => api.put('/ems/notifications/read-all'),
+}
+
 // ── Audit Log APIs ─────────────────────────────────────────────────────────────
 export const auditAPI = {
   getLogs:    (params)                       => api.get('/ems/audit/logs', { params }),

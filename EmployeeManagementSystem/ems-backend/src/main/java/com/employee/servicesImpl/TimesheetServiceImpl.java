@@ -62,7 +62,9 @@ public class TimesheetServiceImpl implements TimesheetService {
         }
 
         if (ts.getStatus() == TimesheetStatus.APPROVED)
-            throw new IllegalStateException("Approved timesheets cannot be edited.");
+            throw new IllegalStateException(
+                "This timesheet has already been approved and cannot be edited. " +
+                "Contact your manager if a correction is needed.");
 
         boolean wasSubmitted = ts.getStatus() == TimesheetStatus.SUBMITTED;
 
@@ -93,7 +95,8 @@ public class TimesheetServiceImpl implements TimesheetService {
                     "Updated submitted entry id=" + ts.getId() + " week=" + weekStart + " project=" + ts.getProject());
             pushService.sendTimesheetStatusNotification(
                     empId, "UPDATED_PENDING_REVIEW", weekStart.toString(),
-                    "Your submitted timesheet was updated and is still awaiting review.");
+                    "Your submitted timesheet was updated and is still awaiting review.",
+                    ts.getId());
         } else {
             auditService.log(empId, "SAVE_TIMESHEET_DRAFT",
                     "Saved draft for week " + weekStart + " project=" + dto.getProject());
@@ -107,7 +110,9 @@ public class TimesheetServiceImpl implements TimesheetService {
         LocalDate weekStart = toMonday(weekStartDate);
         List<Timesheet> entries = timesheetRepo.findByEmployeeEmpIdAndWeekStartDate(empId, weekStart);
         if (entries.isEmpty())
-            throw new IllegalStateException("No timesheet entries for this week.");
+            throw new IllegalStateException(
+                "No timesheet entries found for the week of " + toMonday(weekStartDate) + ". " +
+                "Please add at least one entry before submitting.");
 
         // Verify every non-holiday, non-leave workday (Mon–Fri) up to and including today
         // has at least some hours logged across all projects combined.
@@ -170,7 +175,9 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .orElseThrow(() -> new EntityNotFoundException("Timesheet not found: " + id));
 
         if (ts.getStatus() != TimesheetStatus.SUBMITTED)
-            throw new IllegalStateException("Only SUBMITTED entries can be reviewed.");
+            throw new IllegalStateException(
+                "Only SUBMITTED timesheets can be reviewed. " +
+                "This one is currently " + ts.getStatus() + ".");
 
         // ── WEEK-IN-PROGRESS GUARD ─────────────────────────────────────────
         // Managers/Admins may only approve or reject a timesheet after the week
@@ -206,7 +213,8 @@ public class TimesheetServiceImpl implements TimesheetService {
                 ts.getEmployee().getEmpId(),
                 action.name(),
                 ts.getWeekStartDate().toString(),
-                reviewNotes);
+                reviewNotes,
+                ts.getId());
         return result;
     }
 
@@ -228,9 +236,11 @@ public class TimesheetServiceImpl implements TimesheetService {
         Timesheet ts = timesheetRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Timesheet not found: " + id));
         if (!ts.getEmployee().getEmpId().equals(empId))
-            throw new IllegalStateException("Not authorized to delete this entry.");
+            throw new IllegalStateException("You can only delete your own timesheet entries.");
         if (ts.getStatus() == TimesheetStatus.APPROVED)
-            throw new IllegalStateException("Approved timesheets cannot be deleted.");
+            throw new IllegalStateException(
+                "Approved timesheets cannot be deleted. " +
+                "Contact your manager if a correction is needed.");
         timesheetRepo.delete(ts);
         auditService.log(empId, "DELETE_TIMESHEET", "Deleted timesheet id=" + id + " week=" + ts.getWeekStartDate());
     }

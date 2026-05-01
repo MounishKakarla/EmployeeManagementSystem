@@ -31,9 +31,8 @@ export default function ProfilePage() {
   const changePwdMutation = useMutation({
     mutationFn: () => authAPI.changePassword({ currentPassword: currentPwd, newPassword: newPwd }),
     onSuccess: () => {
-      toast.success('Password changed successfully!')
-      setShowPwdForm(false)
-      setCurrentPwd(''); setNewPwd(''); setConfirmPwd('')
+      toast.success('Password changed. You will be logged out.')
+      setTimeout(() => logout(), 1500)
     },
     onError: (err) => toast.error(parseApiError(err, 'Failed to change password')),
   })

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Platform } from 'react-native'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
+import { router } from 'expo-router'
 
 // Remote push notifications are not available in Expo Go on Android SDK 53+
 const IS_EXPO_GO = Constants.appOwnership === 'expo'
@@ -14,7 +15,7 @@ if (!IS_EXPO_GO) {
       handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
-        shouldSetBadge: false,
+        shouldSetBadge:  false,
       }),
     })
   } catch (e) {
@@ -27,8 +28,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'EMS Notifications',
-      importance: Notifications.AndroidImportance.MAX,
+      name:             'EMS Notifications',
+      importance:       Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
     })
   }
@@ -55,8 +56,13 @@ export function usePushNotifications() {
   useEffect(() => {
     if (IS_EXPO_GO || !Notifications) return
 
+    // Foreground: notification arrives while app is open — banner shown by OS
     foregroundSub.current = Notifications.addNotificationReceivedListener(() => {})
-    responseSub.current   = Notifications.addNotificationResponseReceivedListener(() => {})
+
+    // User taps a push notification (from background or killed state) → open Alerts tab
+    responseSub.current = Notifications.addNotificationResponseReceivedListener(() => {
+      router.push('/(app)/notifications')
+    })
 
     return () => {
       foregroundSub.current?.remove()

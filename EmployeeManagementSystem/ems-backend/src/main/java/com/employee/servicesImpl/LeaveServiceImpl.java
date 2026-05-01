@@ -54,7 +54,7 @@ public class LeaveServiceImpl implements LeaveService {
     public LeaveRequestDTO submitLeave(String empId, LeaveRequestDTO dto) {
         Employee emp = getActive(empId);
 
-        if (dto.getStartDate().isBefore(LocalDate.now()))
+        if (dto.getStartDate().isBefore(LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"))))
             throw new IllegalArgumentException("Start date cannot be in the past.");
         if (dto.getEndDate().isBefore(dto.getStartDate()))
             throw new IllegalArgumentException("End date must be on or after start date.");
@@ -114,7 +114,9 @@ public class LeaveServiceImpl implements LeaveService {
         if (!req.getEmployee().getEmpId().equals(empId))
             throw new IllegalStateException("You can only cancel your own leave requests.");
         if (req.getStatus() != LeaveStatus.PENDING)
-            throw new IllegalStateException("Only PENDING requests can be cancelled.");
+            throw new IllegalStateException(
+                "Only PENDING leave requests can be cancelled. " +
+                "This request has already been " + req.getStatus() + ".");
         req.setStatus(LeaveStatus.CANCELLED);
         removeOnLeaveAttendance(empId, req.getStartDate(), req.getEndDate());
         auditService.log(empId, "CANCEL_LEAVE", "Cancelled leave request id=" + id);
@@ -133,7 +135,9 @@ public class LeaveServiceImpl implements LeaveService {
                 .orElseThrow(() -> new EntityNotFoundException("Leave request not found: " + id));
 
         if (req.getStatus() != LeaveStatus.PENDING)
-            throw new IllegalStateException("Only PENDING requests can be reviewed.");
+            throw new IllegalStateException(
+                "Only PENDING leave requests can be reviewed. " +
+                "This request has already been " + req.getStatus() + ".");
 
         // Self-approval prevention
         if (req.getEmployee().getEmpId().equals(reviewedBy))
@@ -168,7 +172,8 @@ public class LeaveServiceImpl implements LeaveService {
                 req.getEmployee().getEmpId(),
                 action.name(),
                 req.getLeaveType().name(),
-                reviewNotes);
+                reviewNotes,
+                req.getId());
         return result;
     }
 
@@ -256,7 +261,7 @@ public class LeaveServiceImpl implements LeaveService {
     @Override
     @Transactional
     public LeaveBalanceDTO getBalance(String empId) {
-        int year = LocalDate.now().getYear();
+        int year = LocalDate.now(java.time.ZoneId.of("Asia/Kolkata")).getYear();
         int prevYear = year - 1;
         Employee emp = getActive(empId);
 

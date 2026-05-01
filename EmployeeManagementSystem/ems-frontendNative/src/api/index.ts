@@ -86,3 +86,11 @@ export const timesheetAPI = {
 export const holidayAPI = {
   getByYear: (year: number) => client.get('/ems/holidays', { params: { year } }),
 }
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export const notificationAPI = {
+  getMy:        (params?: Record<string, unknown>) => client.get('/ems/notifications/my', { params }),
+  getUnreadCount: () => client.get('/ems/notifications/unread-count'),
+  markRead:     (id: number) => client.put(`/ems/notifications/${id}/read`),
+  markAllRead:  () => client.put('/ems/notifications/read-all'),
+}

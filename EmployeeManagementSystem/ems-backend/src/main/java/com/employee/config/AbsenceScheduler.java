@@ -2,6 +2,7 @@ package com.employee.config;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,41 +20,41 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Runs every weekday at 10:00 AM.
- * Automatically creates ABSENT records for any active employee
- * who has not checked in yet today — unless today is a weekend or holiday.
+ * Automated attendance housekeeping jobs, all running in IST (Asia/Kolkata).
  *
- * Enable scheduling in EmsBackendApplication with @EnableScheduling.
+ * Real-world pattern: schedulers always specify a timezone so the cron fires
+ * at the correct local time regardless of where the server is hosted.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class AbsenceScheduler {
 
-    private final AttendanceRepository    attendanceRepo;
-    private final EmployeeRepository      employeeRepo;
-    private final HolidayCalendarService  holidayService;
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+
+    private final AttendanceRepository   attendanceRepo;
+    private final EmployeeRepository     employeeRepo;
+    private final HolidayCalendarService holidayService;
 
     /**
-     * Cron: 0 0 10 * * MON-FRI  — 10:00 AM every Monday to Friday.
-     * Also does a holiday check so it skips public holidays automatically.
+     * Runs at 10:00 AM IST, Mon–Fri.
+     * Marks ABSENT any active employee who has no attendance record by that time.
+     * Records are created with checkInTime = null so a late check-in can still
+     * update them (see AttendanceServiceImpl.checkIn).
      */
-    @Scheduled(cron = "0 0 10 * * MON-FRI")
+    @Scheduled(cron = "0 0 10 * * MON-FRI", zone = "Asia/Kolkata")
     @Transactional
     public void markAbsentEmployees() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(IST);
 
-        // Double-check: skip if today is a public holiday
         if (holidayService.isHolidayOrWeekend(today)) {
-            log.info("AbsenceScheduler: {} is a holiday/weekend — skipping.", today);
+            log.info("AbsenceScheduler: {} is a holiday/weekend — skipping absent sweep.", today);
             return;
         }
 
-        // Find all active employees who have NO attendance record today
         List<String> absentIds = attendanceRepo.findAbsentEmployeeIdsOnDate(today);
-
         if (absentIds.isEmpty()) {
-            log.info("AbsenceScheduler: All employees checked in by 10AM on {}", today);
+            log.info("AbsenceScheduler: All employees have records by 10:00 AM IST on {}", today);
             return;
         }
 
@@ -62,11 +63,12 @@ public class AbsenceScheduler {
             Employee emp = employeeRepo.findByEmpIdAndIsEmployeeActiveTrue(empId);
             if (emp == null) continue;
 
+            // checkInTime intentionally left null — a late check-in can still update this record
             Attendance absent = Attendance.builder()
                     .employee(emp)
                     .attendanceDate(today)
                     .status(AttendanceStatus.ABSENT)
-                    .notes("Auto-marked ABSENT by system scheduler at 10:00 AM")
+                    .notes("Auto-marked ABSENT at 10:00 AM IST — no check-in recorded")
                     .recordedBy("SYSTEM")
                     .build();
             attendanceRepo.save(absent);
@@ -76,14 +78,14 @@ public class AbsenceScheduler {
     }
 
     /**
-     * Cron: 0 1 0 * * MON-SUN  — 00:01 AM every day.
-     * Marks all active employees HOLIDAY or WEEKEND for today if applicable.
-     * This ensures the calendar view always has a record for non-working days.
+     * Runs at 00:01 AM IST every day.
+     * Creates WEEKEND or HOLIDAY records for all employees on non-working days
+     * so that the calendar view always has complete coverage.
      */
-    @Scheduled(cron = "0 1 0 * * MON-SUN")
+    @Scheduled(cron = "0 1 0 * * MON-SUN", zone = "Asia/Kolkata")
     @Transactional
     public void markHolidaysAndWeekends() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(IST);
         DayOfWeek dow   = today.getDayOfWeek();
 
         boolean isWeekend = dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;

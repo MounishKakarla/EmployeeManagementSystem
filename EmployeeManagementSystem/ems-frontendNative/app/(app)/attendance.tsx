@@ -224,13 +224,13 @@ export default function AttendanceScreen() {
   const checkInMutation = useMutation({
     mutationFn: (notes: string | undefined = undefined) => attendanceAPI.checkIn(notes),
     onSuccess: () => { Toast.show({ type: 'success', text1: 'Checked in!' }); qc.invalidateQueries({ queryKey: ['attendance'] }) },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Check-in failed' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Check-in failed. Please try again.' }),
   })
 
   const checkOutMutation = useMutation({
     mutationFn: () => attendanceAPI.checkOut(),
     onSuccess: () => { Toast.show({ type: 'success', text1: 'Checked out!' }); qc.invalidateQueries({ queryKey: ['attendance'] }) },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Check-out failed' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Check-out failed. Please try again.' }),
   })
 
   const overrideMutation = useMutation({
@@ -247,7 +247,7 @@ export default function AttendanceScreen() {
       setOverrideOpen(false)
       qc.invalidateQueries({ queryKey: ['attendance'] })
     },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Override failed' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Could not save attendance record. Check the times and try again.' }),
   })
 
   const today = todayData?.data

@@ -2,6 +2,7 @@ package com.employee.services;
 
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.ZoneId;
 
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,8 @@ import com.employee.entity.LeaveBalance;
 @Service
 public class LeaveCalculationService {
 
+	private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+
 	// ── Policy constants ───────────────────────────────────────────────────────
 	public static final int ANNUAL_FULL_YEAR = 15;
 	public static final double ANNUAL_PER_MONTH = 1.25; // 15 / 12
@@ -53,7 +56,7 @@ public class LeaveCalculationService {
 	public LeaveBalance compute(Employee employee, int year, LeaveBalance existing, LeaveBalance prevYear) {
 
 		LocalDate joiningDate = employee.getDateOfJoin();
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(IST);
 
 		int monthsWorkedThisYear = computeMonthsWorkedInYear(joiningDate, year, today);
 

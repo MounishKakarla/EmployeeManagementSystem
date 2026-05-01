@@ -89,7 +89,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Toaster
         position="top-right"
         toastOptions={{
-          duration: 3500,
+          duration: 4000,
           style: {
             borderRadius: '10px',
             background: 'var(--bg-card)',
@@ -97,9 +97,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             border: '1px solid var(--border)',
             fontFamily: 'var(--font-body)',
             fontSize: '14px',
+            maxWidth: '480px',
+            whiteSpace: 'pre-line',
+            wordBreak: 'break-word',
           },
           success: { iconTheme: { primary: 'var(--success)', secondary: 'white' } },
-          error:   { iconTheme: { primary: 'var(--danger)',  secondary: 'white' } },
+          error:   { duration: 5000, iconTheme: { primary: 'var(--danger)', secondary: 'white' } },
         }}
       />
     </QueryClientProvider>

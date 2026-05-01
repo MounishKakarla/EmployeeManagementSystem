@@ -6,12 +6,14 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Users, User, Settings, LogOut,
   Sun, Moon, BotMessageSquare, ChevronDown, Shield,
-  Mail, Menu, X, Search,
+  Mail, Menu, X, Search, Bell,
   CalendarDays, Umbrella, Timer, CalendarCheck, ShieldAlert,
 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth }    from '../../context/AuthContext'
 import { useTheme }   from '../../context/ThemeContext'
 import { useUIStore } from '../../store/uiStore'
+import { notificationAPI } from '../../api'
 import ChatBotWidget        from '../ui/ChatBotWidget'
 import EmployeeSideSheet    from '../ui/EmployeeSideSheet'
 import CommandPalette       from '../ui/CommandPalette'
@@ -162,6 +164,9 @@ export default function AppLayout() {
             <span className="topnav-search-label">Search...</span>
             <kbd className="topnav-kbd">Ctrl K</kbd>
           </button>
+
+          {/* Notification Bell */}
+          <NotificationBell />
 
           {/* Avatar dropdown */}
           <div ref={avatarRef} style={{ position: 'relative' }}>
@@ -321,4 +326,167 @@ function DropdownItem({ icon: Icon, label, onClick, danger, muted, small }) {
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
     </button>
   )
+}
+
+const CATEGORY_COLORS = {
+  LEAVE:      'var(--info,    #3b82f6)',
+  TIMESHEET:  'var(--warning, #f59e0b)',
+  ATTENDANCE: 'var(--success, #22c55e)',
+  SYSTEM:     'var(--text-muted)',
+}
+
+function NotificationBell() {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const panelRef = useRef(null)
+
+  const { data: countData } = useQuery({
+    queryKey: ['notif-count'],
+    queryFn:  () => notificationAPI.getUnreadCount(),
+    refetchInterval: 30_000,
+    staleTime: 0,
+    select: (res) => res.data?.count ?? 0,
+  })
+
+  const { data: notifications, isLoading } = useQuery({
+    queryKey: ['notifications'],
+    queryFn:  () => notificationAPI.getMy({ page: 0, size: 25 }),
+    enabled:  open,
+    staleTime: 0,
+    select: (res) => res.data?.content ?? [],
+  })
+
+  const markRead = useMutation({
+    mutationFn: (id) => notificationAPI.markRead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notif-count'] })
+    },
+  })
+
+  const markAll = useMutation({
+    mutationFn: () => notificationAPI.markAllRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notif-count'] })
+    },
+  })
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const unread = countData ?? 0
+
+  return (
+    <div ref={panelRef} style={{ position: 'relative' }}>
+      <button
+        className="btn btn-ghost"
+        style={{ position: 'relative', padding: '6px 8px' }}
+        onClick={() => setOpen(o => !o)}
+        aria-label="Notifications"
+        title="Notifications"
+      >
+        <Bell size={18} />
+        {unread > 0 && (
+          <span style={{
+            position: 'absolute', top: 2, right: 2,
+            background: 'var(--danger)', color: '#fff',
+            borderRadius: '50%', fontSize: 9, fontWeight: 700,
+            width: 16, height: 16,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1, pointerEvents: 'none',
+          }}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="glass-panel" style={{
+          position: 'absolute', right: 0, top: 'calc(100% + 8px)',
+          width: 360, maxHeight: 480, overflowY: 'auto',
+          zIndex: 1050, borderRadius: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          border: '1px solid var(--border)',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 10px', position: 'sticky', top: 0, background: 'var(--bg-card)', zIndex: 1 }}>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>
+              Notifications {unread > 0 && <span style={{ color: 'var(--danger)', fontSize: 12 }}>({unread} new)</span>}
+            </span>
+            {unread > 0 && (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 12, padding: '2px 8px', color: 'var(--primary)' }}
+                onClick={() => markAll.mutate()}
+                disabled={markAll.isPending}
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+          <div style={{ height: 1, background: 'var(--border)' }} />
+
+          {isLoading ? (
+            <div style={{ padding: 32, textAlign: 'center' }}>
+              <span className="spinner" style={{ width: 20, height: 20 }} />
+            </div>
+          ) : !notifications?.length ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              <Bell size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
+              No notifications yet
+            </div>
+          ) : (
+            notifications.map(n => (
+              <div
+                key={n.id}
+                onClick={() => { if (!n.read) markRead.mutate(n.id) }}
+                style={{
+                  padding: '12px 16px',
+                  cursor: n.read ? 'default' : 'pointer',
+                  background: n.read ? 'transparent' : 'rgba(99,102,241,0.06)',
+                  borderBottom: '1px solid var(--border)',
+                  display: 'flex', gap: 10, alignItems: 'flex-start',
+                  transition: 'background 0.15s',
+                }}
+              >
+                {/* category dot */}
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 5,
+                  background: n.read ? 'var(--border)' : (CATEGORY_COLORS[n.category] ?? 'var(--primary)'),
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: n.read ? 400 : 600, fontSize: 13, marginBottom: 2, color: 'var(--text-primary)' }}>
+                    {n.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                    {n.body}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    {relativeTime(n.createdAt)}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function relativeTime(iso) {
+  if (!iso) return ''
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)  return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24)  return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
 }

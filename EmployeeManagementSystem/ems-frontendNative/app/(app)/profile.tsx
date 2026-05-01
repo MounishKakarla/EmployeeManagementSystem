@@ -54,21 +54,21 @@ export default function ProfileScreen() {
   const changePwdMutation = useMutation({
     mutationFn: () => authAPI.changePassword({ currentPassword: currentPwd, newPassword: newPwd }),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Password changed successfully!' })
-      setShowPwdForm(false); setCurrentPwd(''); setNewPwd(''); setConfirmPwd('')
+      Toast.show({ type: 'success', text1: 'Password changed. Please log in again.' })
+      setTimeout(() => logout(), 1500)
     },
-    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to change password' }),
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Password change failed. Please verify your current password and try again.' }),
   })
 
   const handleChangePassword = () => {
     if (!currentPwd || !newPwd || !confirmPwd) {
-      Toast.show({ type: 'error', text1: 'All fields are required' }); return
+      Toast.show({ type: 'error', text1: 'Please fill in all password fields.' }); return
     }
     if (newPwd !== confirmPwd) {
-      Toast.show({ type: 'error', text1: 'New passwords do not match' }); return
+      Toast.show({ type: 'error', text1: 'New passwords do not match. Please re-enter.' }); return
     }
     if (newPwd.length < 6) {
-      Toast.show({ type: 'error', text1: 'Password must be at least 6 characters' }); return
+      Toast.show({ type: 'error', text1: 'New password must be at least 6 characters long.' }); return
     }
     changePwdMutation.mutate()
   }

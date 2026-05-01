@@ -3,11 +3,32 @@ import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import Toast from 'react-native-toast-message'
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message'
 import * as SplashScreen from 'expo-splash-screen'
 import { AuthProvider, useAuth } from '../src/context/AuthContext'
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext'
 import { usePushNotifications } from '../src/hooks/usePushNotifications'
+
+const toastConfig = {
+  success: (props: any) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#22c55e', height: undefined, minHeight: 56 }}
+      text1Style={{ fontSize: 13, fontWeight: '600', flexWrap: 'wrap' }}
+      text1NumberOfLines={5}
+      text2NumberOfLines={5}
+    />
+  ),
+  error: (props: any) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: '#ef4444', height: undefined, minHeight: 56 }}
+      text1Style={{ fontSize: 13, fontWeight: '600', flexWrap: 'wrap' }}
+      text1NumberOfLines={5}
+      text2NumberOfLines={5}
+    />
+  ),
+}
 
 // Prevent the native splash from auto-hiding before resources are ready
 SplashScreen.preventAutoHideAsync()
@@ -57,7 +78,7 @@ export default function RootLayout() {
           <ThemeProvider>
             <AuthProvider>
               <AppContent />
-              <Toast />
+              <Toast config={toastConfig} />
             </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>
