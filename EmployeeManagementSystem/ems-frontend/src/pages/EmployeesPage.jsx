@@ -216,7 +216,9 @@ const EmployeeRow = React.forwardRef(({ emp, 'data-index': dataIndex }, ref) => 
     <tr ref={ref} data-index={dataIndex} onClick={(e)=>{if(e.target.closest('button'))return;openEmployeeSheet(emp.empId)}} style={{ cursor:'pointer' }} title="Click to view & edit">
       <td style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:13, color:'var(--accent)' }}>{emp.empId}</td>
       <td><div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <div className="avatar">{initials}</div>
+        {emp.profileImage
+          ? <img src={emp.profileImage} alt={emp.name} style={{ width:36, height:36, borderRadius:'50%', objectFit:'cover', border:'2px solid var(--border)', flexShrink:0 }}/>
+          : <div className="avatar">{initials}</div>}
         <div><div style={{ fontWeight:500, fontSize:14 }}>{emp.name}</div><div style={{ fontSize:12, color:'var(--text-muted)' }}>{emp.companyEmail}</div></div>
       </div></td>
       <td><div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>{depts.slice(0,2).map(d=><span key={d} className="badge badge-info" style={{ fontSize:11 }}>{d}</span>)}{depts.length>2&&<span className="badge badge-neutral" style={{ fontSize:11 }}>+{depts.length-2}</span>}</div></td>

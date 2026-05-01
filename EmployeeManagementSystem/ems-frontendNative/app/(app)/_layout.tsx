@@ -1,49 +1,10 @@
 // app/(app)/_layout.tsx
 import { Tabs, Redirect } from 'expo-router'
-import { View, Text, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useQuery } from '@tanstack/react-query'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../src/context/AuthContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
-import { notificationAPI } from '../../src/api'
-
-// Bell icon with a live unread-count badge
-// Polls every 30 s — simple and reliable without WebSockets
-function BellIcon({ color, size }: { color: string; size: number }) {
-  const Colors = useThemeColors()
-  const { data } = useQuery({
-    queryKey:        ['notif-count'],
-    queryFn:         () => notificationAPI.getUnreadCount(),
-    refetchInterval: 30_000,
-    staleTime:       0,
-  })
-  const count: number = (data?.data?.count ?? 0)
-
-  return (
-    <View style={{ width: size + 10, height: size + 10, justifyContent: 'center', alignItems: 'center' }}>
-      <Ionicons name="notifications-outline" size={size} color={color} />
-      {count > 0 && (
-        <View style={{
-          position:        'absolute',
-          top:             0,
-          right:           0,
-          backgroundColor: Colors.danger,
-          borderRadius:    8,
-          minWidth:        16,
-          height:          16,
-          paddingHorizontal: 3,
-          justifyContent:  'center',
-          alignItems:      'center',
-        }}>
-          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', lineHeight: 16 }}>
-            {count > 99 ? '99+' : String(count)}
-          </Text>
-        </View>
-      )}
-    </View>
-  )
-}
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -112,10 +73,7 @@ export default function AppLayout() {
       />
       <Tabs.Screen
         name="notifications"
-        options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color, size }) => <BellIcon color={color} size={size} />,
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="profile"

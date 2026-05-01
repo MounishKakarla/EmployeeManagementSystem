@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useState, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../context/AuthContext'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import { employeeAPI, authAPI } from '../api'
 import { parseApiError } from '../utils/errorUtils'
 import {
   Mail, Phone, MapPin, Building2, Briefcase, Calendar, User,
-  Lock, Eye, EyeOff, LogOut, ChevronDown, ChevronUp, Gift, UserCircle
+  Lock, Eye, EyeOff, ChevronDown, ChevronUp, Gift, UserCircle,
+  Camera, Trash2
 } from 'lucide-react'
 import { formatDate } from '../utils/dateUtils'
 import toast from 'react-hot-toast'
@@ -14,6 +15,7 @@ import '../styles/profile.css'
 
 export default function ProfilePage() {
   const { user, logout } = useAuth()
+  const queryClient = useQueryClient()
   useDocumentTitle('My Profile | Tektalis EMS')
 
   const [showPwdForm,  setShowPwdForm]  = useState(false)
@@ -23,10 +25,35 @@ export default function ProfilePage() {
   const [currentPwd,   setCurrentPwd]   = useState('')
   const [newPwd,       setNewPwd]       = useState('')
   const [confirmPwd,   setConfirmPwd]   = useState('')
+  const fileInputRef = useRef(null)
 
   const { data, isLoading } = useQuery({ queryKey:['profile'], queryFn:()=>employeeAPI.getProfile() })
   const profile  = data?.data
   const initials = profile?.name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || user?.empId?.slice(0,2)
+
+  const imageMutation = useMutation({
+    mutationFn: (base64) => employeeAPI.updateProfileImage(base64),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      toast.success(imageMutation.variables === null ? 'Profile image removed' : 'Profile image updated')
+    },
+    onError: (err) => toast.error(parseApiError(err, 'Failed to update profile image')),
+  })
+
+  const handleImagePick = () => fileInputRef.current?.click()
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => imageMutation.mutate(reader.result)
+    reader.readAsDataURL(file)
+    e.target.value = '' // reset so same file can be re-selected
+  }
+
+  const handleRemoveImage = () => imageMutation.mutate(null)
 
   const changePwdMutation = useMutation({
     mutationFn: () => authAPI.changePassword({ currentPassword: currentPwd, newPassword: newPwd }),
@@ -44,10 +71,6 @@ export default function ProfilePage() {
     changePwdMutation.mutate()
   }
 
-  const handleSignOut = () => {
-    if (window.confirm('Are you sure you want to sign out?')) logout()
-  }
-
   if (isLoading) return <div style={{ display:'flex', justifyContent:'center', padding:80 }}><div className="spinner" style={{ width:28, height:28 }}/></div>
 
   return (
@@ -57,7 +80,41 @@ export default function ProfilePage() {
 
         {/* Hero card */}
         <div className="card profile-hero">
-          <div className="avatar avatar-xl profile-avatar">{initials}</div>
+          {/* ── Profile image with upload overlay ── */}
+          <div className="profile-avatar-wrap">
+            {profile?.profileImage ? (
+              <img src={profile.profileImage} alt={profile.name} className="profile-avatar-img" />
+            ) : (
+              <div className="avatar avatar-xl profile-avatar">{initials}</div>
+            )}
+            <button
+              className="profile-avatar-overlay"
+              onClick={handleImagePick}
+              disabled={imageMutation.isPending}
+              title="Change profile photo"
+            >
+              {imageMutation.isPending
+                ? <span className="spinner" style={{ width:18, height:18 }}/>
+                : <Camera size={18} color="#fff"/>}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display:'none' }}
+            />
+          </div>
+          {profile?.profileImage && (
+            <button
+              className="profile-remove-img-btn"
+              onClick={handleRemoveImage}
+              disabled={imageMutation.isPending}
+            >
+              <Trash2 size={12}/> Remove Photo
+            </button>
+          )}
+
           <div className="profile-hero-info">
             <h2>{profile?.name || user?.empId}</h2>
             <div className="profile-badges">
@@ -167,11 +224,6 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* ── Sign Out ────────────────────────────────────────────────────── */}
-        <button className="profile-signout-btn" onClick={handleSignOut}>
-          <LogOut size={16}/>
-          Sign Out
-        </button>
       </div>
     </div>
   )

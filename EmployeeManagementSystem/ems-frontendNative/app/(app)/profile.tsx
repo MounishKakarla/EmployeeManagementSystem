@@ -1,8 +1,9 @@
 // app/(app)/profile.tsx — Profile Screen
 import { useState, useRef } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { useAuth } from '../../src/context/AuthContext'
@@ -10,6 +11,7 @@ import { useTheme } from '../../src/context/ThemeContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { authAPI, employeeAPI } from '../../src/api'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
+import BellButton from '../../src/components/BellButton'
 
 function InfoRow({ icon, label, value, colors }: { icon: string; label: string; value?: string; colors: any }) {
   return (
@@ -29,6 +31,7 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth()
   const { toggleTheme, isDark } = useTheme()
   const Colors = useThemeColors()
+  const queryClient = useQueryClient()
   
   const [showPwdForm, setShowPwdForm]     = useState(false)
   const [currentPwd, setCurrentPwd]       = useState('')
@@ -50,6 +53,30 @@ export default function ProfileScreen() {
   })
 
   const profile = profileData?.data || user
+
+  const imageMutation = useMutation({
+    mutationFn: (base64: string | null) => employeeAPI.updateProfileImage(base64),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      Toast.show({ type: 'success', text1: variables === null ? 'Profile photo removed' : 'Profile photo updated' })
+    },
+    onError: (err: any) => Toast.show({ type: 'error', text1: err?.response?.data?.message || 'Failed to update profile photo' }),
+  })
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      const dataUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      imageMutation.mutate(dataUri);
+    }
+  };
 
   const changePwdMutation = useMutation({
     mutationFn: () => authAPI.changePassword({ currentPassword: currentPwd, newPassword: newPwd }),
@@ -96,6 +123,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.bgPrimary }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Profile</Text>
+        <BellButton />
       </View>
 
       <KeyboardAvoidingView
@@ -113,9 +141,26 @@ export default function ProfileScreen() {
 
         {/* Avatar + name card */}
         <View style={[styles.heroCard, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
-          <View style={[styles.avatar, { backgroundColor: Colors.accentLight }]}>
-            <Text style={[styles.avatarText, { color: Colors.accent }]}>{initials}</Text>
-          </View>
+          <TouchableOpacity onPress={pickImage} style={styles.avatarContainer} disabled={imageMutation.isPending}>
+            {profile?.profileImage ? (
+              <Image source={{ uri: profile.profileImage }} style={styles.avatarImage} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: Colors.accentLight }]}>
+                <Text style={[styles.avatarText, { color: Colors.accent }]}>{initials}</Text>
+              </View>
+            )}
+            <View style={styles.cameraOverlay}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
+
+          {profile?.profileImage && (
+            <TouchableOpacity onPress={() => imageMutation.mutate(null)} style={styles.removeImageBtn} disabled={imageMutation.isPending}>
+              <Ionicons name="trash-outline" size={14} color={Colors.danger} />
+              <Text style={[styles.removeImageText, { color: Colors.danger }]}>Remove Photo</Text>
+            </TouchableOpacity>
+          )}
+
           <Text style={[styles.heroName, { color: Colors.textPrimary }]}>{profile?.name}</Text>
           <Text style={[styles.heroEmail, { color: Colors.textMuted }]}>{profile?.companyEmail}</Text>
           <View style={styles.rolesRow}>
@@ -294,6 +339,11 @@ const styles = StyleSheet.create({
   header:       { padding: Spacing.md },
   title:        { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
   heroCard:     { alignItems: 'center', margin: Spacing.md, borderRadius: Radius.lg, padding: Spacing.xl, borderWidth: 1, gap: Spacing.sm },
+  avatarContainer: { position: 'relative', marginBottom: Spacing.xs },
+  avatarImage:  { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: '#e1e4e8' },
+  cameraOverlay: { position: 'absolute', bottom: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  removeImageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.xs },
+  removeImageText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   avatar:       { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
   avatarText:   { fontSize: 28, fontWeight: FontWeight.bold },
   heroName:     { fontSize: FontSize.xl, fontWeight: FontWeight.bold },

@@ -63,6 +63,9 @@ public class Employee {
     @Column(name = "gender", nullable = true, length = 10)
     private String gender;
 
+    @Column(name = "profile_image", nullable = true, columnDefinition = "TEXT")
+    private String profileImage;
+
     @Column(name = "date_of_exit", nullable = true)
     private LocalDate dateOfExit;
 

@@ -24,6 +24,7 @@ public class EmployeeDTO {
     private LocalDate dateOfBirth;
     private String    description;
     private String    gender;
+    private String    profileImage;
     private LocalDate dateOfExit;
     private Boolean   isEmployeeActive;
     private Set<RolesEnum> roles;

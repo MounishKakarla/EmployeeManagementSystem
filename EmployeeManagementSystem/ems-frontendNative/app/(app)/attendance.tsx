@@ -9,6 +9,7 @@ import { attendanceAPI } from '../../src/api'
 import { useAuth } from '../../src/context/AuthContext'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
+import BellButton from '../../src/components/BellButton'
 import dayjs from 'dayjs'
 import { useFocusEffect } from 'expo-router'
 
@@ -264,15 +265,18 @@ export default function AttendanceScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.bgPrimary }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Attendance</Text>
-        {canManage && (
-          <TouchableOpacity
-            style={[styles.overrideBtn, { backgroundColor: Colors.accent }]}
-            onPress={() => openOverride(user?.empId || '')}
-          >
-            <Ionicons name="create-outline" size={16} color="#fff" />
-            <Text style={styles.overrideBtnText}>Override</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {canManage && (
+            <TouchableOpacity
+              style={[styles.overrideBtn, { backgroundColor: Colors.accent }]}
+              onPress={() => openOverride(user?.empId || '')}
+            >
+              <Ionicons name="create-outline" size={16} color="#fff" />
+              <Text style={styles.overrideBtnText}>Override</Text>
+            </TouchableOpacity>
+          )}
+          <BellButton />
+        </View>
       </View>
 
       {visibleTabs.length > 1 && (

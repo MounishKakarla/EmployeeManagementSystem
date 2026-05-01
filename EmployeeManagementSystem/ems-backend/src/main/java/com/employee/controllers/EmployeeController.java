@@ -1,6 +1,7 @@
 package com.employee.controllers;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -75,5 +76,13 @@ public class EmployeeController {
     @PatchMapping("/update/{empId}")
     public EmployeeDTO updateFields(@PathVariable String empId, @RequestBody EmployeeDTO dto) {
         return employeeService.updateFields(empId, dto);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @PutMapping("/profile/image")
+    public EmployeeDTO updateMyProfileImage(
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        return employeeService.updateProfileImage(authentication.getName(), body.get("image"));
     }
 }

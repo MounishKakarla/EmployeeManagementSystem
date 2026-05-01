@@ -70,6 +70,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .dateOfBirth(dto.getDateOfBirth())
                 .description(dto.getDescription())
                 .gender(dto.getGender())
+                .profileImage(dto.getProfileImage())
                 .build();
 
         Employee saved = employeeRepository.saveAndFlush(employee);
@@ -170,6 +171,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         if (dto.getDescription()   != null) { changes.append("description; ");   employee.setDescription(dto.getDescription()); }
         if (dto.getSkills()        != null) { changes.append("skills; ");        employee.setSkills(dto.getSkills()); }
         if (dto.getGender()        != null) { changes.append("gender; ");        employee.setGender(dto.getGender()); }
+        if (dto.getProfileImage()  != null) { changes.append("profileImage; ");  employee.setProfileImage(dto.getProfileImage()); }
 
         EmployeeDTO result = employeeDetails(employeeRepository.save(employee));
 
@@ -178,6 +180,15 @@ public class EmployeeServiceImpl implements EmployeeService {
                 "Updated [" + changes.toString().trim() + "] for employee " + empId);
 
         return result;
+    }
+
+    // ── Profile Image ──────────────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public EmployeeDTO updateProfileImage(String empId, String base64Image) {
+        Employee employee = getActiveEmployee(empId);
+        employee.setProfileImage(base64Image);  // null clears it
+        return employeeDetails(employeeRepository.save(employee));
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
@@ -199,7 +210,7 @@ public class EmployeeServiceImpl implements EmployeeService {
                 .department(employee.getDepartment()).designation(employee.getDesignation())
                 .skills(employee.getSkills()).dateOfJoin(employee.getDateOfJoin())
                 .dateOfBirth(employee.getDateOfBirth()).description(employee.getDescription())
-                .gender(employee.getGender())
+                .gender(employee.getGender()).profileImage(employee.getProfileImage())
                 .dateOfExit(employee.getDateOfExit()).isEmployeeActive(employee.getIsEmployeeActive())
                 .roles(roles).build();
     }

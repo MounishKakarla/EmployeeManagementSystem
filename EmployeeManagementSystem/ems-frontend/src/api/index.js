@@ -138,6 +138,7 @@ export const employeeAPI = {
   getInactive:     (params)      => api.get('/ems/employees/inactive', { params }),
   delete:          (empId)       => api.delete(`/ems/employee/${empId}`),
   update:          (empId, data) => api.patch(`/ems/update/${empId}`, data),
+  updateProfileImage: (image)    => api.put('/ems/profile/image', { image }),
 }
 
 // ── Role APIs ──────────────────────────────────────────────────────────────────

@@ -11,4 +11,5 @@ public interface EmployeeService {
     EmployeeDTO getInactiveEmployeeById(String empId);
     void deleteEmployee(String empId);
     EmployeeDTO updateFields(String empId, EmployeeDTO dto);
+    EmployeeDTO updateProfileImage(String empId, String base64Image);
 }

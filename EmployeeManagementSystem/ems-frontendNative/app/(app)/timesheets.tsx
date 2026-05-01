@@ -12,6 +12,7 @@ import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import CalendarPicker from '../../src/components/CalendarPicker'
 import TimePicker from '../../src/components/TimePicker'
+import BellButton from '../../src/components/BellButton'
 import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
 import { useState, useEffect, useCallback } from 'react'
@@ -471,11 +472,14 @@ ${t.approvedBy ? `<br><strong>Reviewed by:</strong> ${t.approvedBy}` : ''}
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.bgPrimary }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Timesheets</Text>
-        {weekStatus && (
-          <View style={[styles.statusPill, { backgroundColor: getStatusStyle(weekStatus, Colors).bg }]}>
-            <Text style={[styles.statusText, { color: getStatusStyle(weekStatus, Colors).color }]}>{weekStatus}</Text>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {weekStatus && (
+            <View style={[styles.statusPill, { backgroundColor: getStatusStyle(weekStatus, Colors).bg }]}>
+              <Text style={[styles.statusText, { color: getStatusStyle(weekStatus, Colors).color }]}>{weekStatus}</Text>
+            </View>
+          )}
+          <BellButton />
+        </View>
       </View>
 
       {visibleTabs.length > 1 && (

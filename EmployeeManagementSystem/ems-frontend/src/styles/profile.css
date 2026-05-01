@@ -7,6 +7,15 @@
 .profile-hero-info{display:flex;flex-direction:column;align-items:center;gap:8px}
 .profile-hero-info h2{font-size:22px;font-weight:700}
 .profile-avatar{flex-shrink:0}
+
+/* ── Profile avatar image ──────────────────────────────────────────────── */
+.profile-avatar-wrap{position:relative;width:96px;height:96px;border-radius:50%;cursor:pointer;flex-shrink:0}
+.profile-avatar-wrap .avatar{width:96px;height:96px;font-size:32px}
+.profile-avatar-img{width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;border:3px solid var(--border)}
+.profile-avatar-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;border:none;cursor:pointer}
+.profile-avatar-wrap:hover .profile-avatar-overlay{opacity:1}
+.profile-remove-img-btn{background:none;border:none;color:var(--danger);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;transition:background 0.15s}
+.profile-remove-img-btn:hover{background:var(--danger-light)}
 .profile-badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
 .profile-cards{align-items:start}
 .profile-fields{display:flex;flex-direction:column;gap:16px}

@@ -13,6 +13,7 @@ import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
 import dayjs from 'dayjs'
 import { useFocusEffect } from 'expo-router'
+import BellButton from '../../src/components/BellButton'
 
 const LEAVE_TYPES = [
   { value: 'ANNUAL',      label: 'Annual / Earned Leave' },
@@ -224,10 +225,13 @@ export default function LeaveScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.bgPrimary }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Leave Management</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <BellButton />
         <TouchableOpacity style={[styles.requestBtn, { backgroundColor: Colors.accent }]} onPress={() => { setFormError(null); setModalOpen(true) }}>
           <Ionicons name="add" size={18} color="#fff" />
           <Text style={styles.requestBtnText}>Request</Text>
         </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Tab Switcher ────────────────────────────────────────────────────── */}

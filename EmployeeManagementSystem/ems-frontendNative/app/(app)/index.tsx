@@ -8,6 +8,7 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { useThemeColors } from '../../src/hooks/useThemeColors'
 import { attendanceAPI, leaveAPI } from '../../src/api'
 import { Spacing, FontSize, FontWeight, Radius } from '../../src/theme'
+import BellButton from '../../src/components/BellButton'
 import dayjs from 'dayjs'
 import { useCallback } from 'react'
 
@@ -42,7 +43,7 @@ function QuickAction({ icon, label, color, onPress, colors }: {
 }
 
 export default function DashboardScreen() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
   const Colors = useThemeColors()
   const qc = useQueryClient()
@@ -78,9 +79,7 @@ export default function DashboardScreen() {
           <Text style={[styles.greeting, { color: Colors.textMuted }]}>{greeting},</Text>
           <Text style={[styles.userName, { color: Colors.textPrimary }]}>{user?.name?.split(' ')[0]} 👋</Text>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.textMuted} />
-        </TouchableOpacity>
+        <BellButton />
       </View>
 
       <ScrollView
@@ -160,7 +159,6 @@ const styles = StyleSheet.create({
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, paddingTop: Spacing.sm },
   greeting:    { fontSize: FontSize.sm },
   userName:    { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  logoutBtn:   { padding: Spacing.sm },
   dateBanner:  { flexDirection: 'row', alignItems: 'center', marginHorizontal: Spacing.md, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.md, gap: 8 },
   dateText:    { fontSize: FontSize.sm, flex: 1 },
   dot:         { width: 8, height: 8, borderRadius: 4 },

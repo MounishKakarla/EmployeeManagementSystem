@@ -25,6 +25,7 @@ export const employeeAPI = {
   getInactive:     (params: Record<string, unknown>) => client.get('/ems/employees/inactive', { params }),
   delete:          (empId: string) => client.delete(`/ems/employee/${empId}`),
   update:          (empId: string, data: Record<string, unknown>) => client.patch(`/ems/update/${empId}`, data),
+  updateProfileImage: (image: string | null) => client.put('/ems/profile/image', { image }),
 }
 
 // ── Leave ─────────────────────────────────────────────────────────────────────
