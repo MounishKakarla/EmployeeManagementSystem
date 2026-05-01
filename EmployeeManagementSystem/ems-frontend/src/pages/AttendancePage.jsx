@@ -141,14 +141,12 @@ export default function AttendancePage() {
             Track daily check-ins, view history, and monitor team attendance
           </p>
         </div>
-        {canManage && (
-          <button
-            className="btn btn-secondary"
-            onClick={() => { setEditRecord(null); setOverrideOpen(true) }}
-          >
-            <ClipboardList size={15} /> Manual Entry
-          </button>
-        )}
+        <button
+          className="btn btn-secondary"
+          onClick={() => { setEditRecord(null); setOverrideOpen(true) }}
+        >
+          <ClipboardList size={15} /> Manual Entry
+        </button>
       </div>
 
       {/* ── Check-in widget (always visible) ─────────────────────────────────── */}
@@ -221,15 +219,13 @@ export default function AttendancePage() {
           />
 
           {/* ── Recent History (native-style list) ─────────────────────────── */}
-          <RecentHistoryPanel records={recentHistory} />
+          <RecentHistoryPanel records={recentHistory} onEdit={(record) => { setEditRecord(record); setOverrideOpen(true) }} />
         </div>
       )}
 
       {/* ── Daily Roster tab ──────────────────────────────────────────────────── */}
       {activeTab === 'daily' && canManage && (
-        <DailyRosterTable
-          onEdit={(record) => { setEditRecord(record); setOverrideOpen(true) }}
-        />
+        <DailyRosterTable />
       )}
 
       {/* ── Team Report tab ───────────────────────────────────────────────────── */}
@@ -285,7 +281,7 @@ const STATUS_COLORS = {
   HOLIDAY:        { color: 'var(--info)',    bg: 'var(--info-light)'    },
 }
 
-function RecentHistoryPanel({ records }) {
+function RecentHistoryPanel({ records, onEdit }) {
   if (!records.length) return null
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -317,8 +313,15 @@ function RecentHistoryPanel({ records }) {
                 <span style={{ color:'var(--text-muted)', fontSize:12 }}>→</span>
                 <span style={{ color: rec.checkOutTime || rec.checkOut ? 'var(--info)' : 'var(--text-muted)', fontWeight:600 }}>{outTime}</span>
               </div>
-              <div style={{ fontSize:13, fontWeight:700, color: dur ? 'var(--accent)' : 'var(--text-muted)', minWidth:60, textAlign:'right' }}>
-                {dur ?? '—'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ fontSize:13, fontWeight:700, color: dur ? 'var(--accent)' : 'var(--text-muted)', minWidth:60, textAlign:'right' }}>
+                  {dur ?? '—'}
+                </div>
+                {onEdit && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => onEdit(rec)} style={{ padding: '4px 6px' }} title="Edit Record">
+                    <ClipboardList size={14} />
+                  </button>
+                )}
               </div>
             </div>
           )

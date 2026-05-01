@@ -407,7 +407,16 @@ export default function LeaveScreen() {
               allLeaves.map((l: any) => (
                 <View key={l.id} style={[styles.leaveRow, { backgroundColor: Colors.bgCard, borderColor: Colors.border }]}>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                      {l.profileImage ? (
+                        <Image source={{ uri: l.profileImage }} style={{ width: 24, height: 24, borderRadius: 12 }} />
+                      ) : (
+                        <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.accentLight, justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: Colors.accent }}>
+                            {l.employeeName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={[styles.leaveType, { color: Colors.textPrimary }]}>{l.employeeName || l.empId}</Text>
                     </View>
                     <Text style={[styles.leaveDates, { color: Colors.textSecondary }]}>

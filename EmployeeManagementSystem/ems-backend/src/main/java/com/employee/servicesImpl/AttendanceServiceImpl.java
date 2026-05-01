@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.employee.dto.AttendanceDTO;
 import com.employee.dto.AttendanceSummaryDTO;
@@ -203,6 +204,9 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional
     public AttendanceDTO createOrOverride(AttendanceDTO dto, String recordedBy) {
+        if (!dto.getEmpId().equals(recordedBy)) {
+            throw new AccessDeniedException("Users can only log or override their own attendance");
+        }
         Employee employee = getActiveEmployee(dto.getEmpId());
 
         // Upsert: update if exists, create if not
@@ -228,6 +232,10 @@ public class AttendanceServiceImpl implements AttendanceService {
         Attendance record = attendanceRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Attendance record not found with id: " + id));
+
+        if (!record.getEmployee().getEmpId().equals(updatedBy)) {
+            throw new AccessDeniedException("Users can only update their own attendance");
+        }
 
         if (dto.getCheckInTime()  != null) record.setCheckInTime(dto.getCheckInTime());
         if (dto.getCheckOutTime() != null) record.setCheckOutTime(dto.getCheckOutTime());

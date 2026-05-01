@@ -639,8 +639,19 @@ function TimesheetTable({ records, isLoading, showEmployee, actions, page, total
               <tr key={r.id}>
                 {showEmployee && (
                   <td>
-                    <div style={{ fontWeight: 500, fontSize: 13 }}>{r.employeeName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.empId}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {r.profileImage ? (
+                        <img src={r.profileImage} alt={r.employeeName} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                      ) : (
+                        <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>
+                          {r.employeeName?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '??'}
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: 13 }}>{r.employeeName}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.empId}</div>
+                      </div>
+                    </div>
                   </td>
                 )}
                 <td style={{ fontSize: 13 }}>{formatWeek(firstWorkedDate(r))}</td>

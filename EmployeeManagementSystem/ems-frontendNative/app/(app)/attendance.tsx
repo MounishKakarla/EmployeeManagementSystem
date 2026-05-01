@@ -266,15 +266,13 @@ export default function AttendanceScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors.textPrimary }]}>Attendance</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {canManage && (
-            <TouchableOpacity
-              style={[styles.overrideBtn, { backgroundColor: Colors.accent }]}
-              onPress={() => openOverride(user?.empId || '')}
-            >
-              <Ionicons name="create-outline" size={16} color="#fff" />
-              <Text style={styles.overrideBtnText}>Override</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.overrideBtn, { backgroundColor: Colors.accent }]}
+            onPress={() => openOverride(user?.empId || '')}
+          >
+            <Ionicons name="create-outline" size={16} color="#fff" />
+            <Text style={styles.overrideBtnText}>Override</Text>
+          </TouchableOpacity>
           <BellButton />
         </View>
       </View>
@@ -455,14 +453,6 @@ export default function AttendanceScreen() {
                     <View style={[styles.rosterBadge, { backgroundColor: s.bg }]}>
                       <Text style={[styles.rosterBadgeText, { color: s.color }]}>{s.label}</Text>
                     </View>
-                    {/* Override shortcut for this employee on this date */}
-                    <TouchableOpacity
-                      style={[styles.rowOverrideBtn, { backgroundColor: Colors.accentLight }]}
-                      onPress={() => openOverride(r.empId, rosterDate)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="create-outline" size={14} color={Colors.accent} />
-                    </TouchableOpacity>
                   </View>
                 )
               })

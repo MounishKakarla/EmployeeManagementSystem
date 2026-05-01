@@ -117,7 +117,7 @@ public class AttendanceController {
      * Create or override an attendance record for any employee.
      * Body: AttendanceDTO with empId, attendanceDate, checkInTime, checkOutTime, status, notes.
      */
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
     @PostMapping("/override")
     public ResponseEntity<AttendanceDTO> createOrOverride(
             Authentication auth,
@@ -130,7 +130,7 @@ public class AttendanceController {
      * PUT /ems/attendance/{id}
      * Update an existing attendance record (admin correction).
      */
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
     @PutMapping("/{id}")
     public ResponseEntity<AttendanceDTO> update(
             Authentication auth,

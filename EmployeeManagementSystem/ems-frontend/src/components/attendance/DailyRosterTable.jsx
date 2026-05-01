@@ -24,7 +24,7 @@ const DEPARTMENTS = [
   'ADMINISTRATION','HOSPITALITY','PROCUREMENT',
 ]
 
-export default function DailyRosterTable({ onEdit }) {
+export default function DailyRosterTable() {
   const today = new Date().toISOString().split('T')[0]
   const [selectedDate,  setSelectedDate]  = useState(today)
   const [filterDept,    setFilterDept]    = useState('')
@@ -106,7 +106,6 @@ export default function DailyRosterTable({ onEdit }) {
                   <th>Check Out</th>
                   <th>Hours</th>
                   <th>Status</th>
-                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -139,15 +138,6 @@ export default function DailyRosterTable({ onEdit }) {
                       <span className={`badge ${STATUS_BADGE[r.status] ?? 'badge-neutral'}`}>
                         {r.status?.replace('_', ' ')}
                       </span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => onEdit(r)}
-                        title="Edit record"
-                      >
-                        <Pencil size={13} /> Edit
-                      </button>
                     </td>
                   </tr>
                 ))}
