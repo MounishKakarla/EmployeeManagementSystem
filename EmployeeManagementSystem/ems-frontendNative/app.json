@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TekSphere",
-    "slug": "teksphere",
+    "slug": "tektalis-ems",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/Tektalis_Icon_Square.png",
