@@ -336,7 +336,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   root:         { flex: 1 },
-  header:       { padding: Spacing.md },
+  header:       { padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title:        { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
   heroCard:     { alignItems: 'center', margin: Spacing.md, borderRadius: Radius.lg, padding: Spacing.xl, borderWidth: 1, gap: Spacing.sm },
   avatarContainer: { position: 'relative', marginBottom: Spacing.xs },
