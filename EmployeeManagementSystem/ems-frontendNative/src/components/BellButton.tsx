@@ -1,9 +1,15 @@
 import { View, Text, TouchableOpacity } from 'react-native'
+import { useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 import { notificationAPI } from '../api'
 import { useThemeColors } from '../hooks/useThemeColors'
+
+import * as Notifications from 'expo-notifications'
+import Constants from 'expo-constants'
+
+const IS_EXPO_GO = Constants.appOwnership === 'expo'
 
 export default function BellButton() {
   const router = useRouter()
@@ -16,6 +22,12 @@ export default function BellButton() {
     staleTime:       0,
   })
   const count: number = data?.data?.count ?? 0
+
+  useEffect(() => {
+    if (!IS_EXPO_GO && Notifications.setBadgeCountAsync) {
+      Notifications.setBadgeCountAsync(count).catch(() => {})
+    }
+  }, [count])
 
   return (
     <TouchableOpacity

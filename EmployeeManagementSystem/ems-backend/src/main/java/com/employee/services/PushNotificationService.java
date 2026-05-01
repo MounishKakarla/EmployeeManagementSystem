@@ -75,6 +75,8 @@ public class PushNotificationService {
         if (user == null || user.getPushToken() == null || user.getPushToken().isBlank()) return;
 
         try {
+            int unreadCount = (int) notificationRepository.countByEmpIdAndReadFalse(empId);
+
             Map<String, Object> payload = new HashMap<>();
             payload.put("to",        user.getPushToken());
             payload.put("title",     title);
@@ -82,6 +84,7 @@ public class PushNotificationService {
             payload.put("sound",     "default");
             payload.put("channelId", "default");
             payload.put("priority",  "high");
+            payload.put("badge",     unreadCount);
             payload.put("data",      Map.of("category", category, "relatedId",
                                              relatedId != null ? relatedId : 0));
 

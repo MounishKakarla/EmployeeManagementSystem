@@ -15,7 +15,7 @@ if (!IS_EXPO_GO) {
       handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
-        shouldSetBadge:  false,
+        shouldSetBadge:  true,
       }),
     })
   } catch (e) {

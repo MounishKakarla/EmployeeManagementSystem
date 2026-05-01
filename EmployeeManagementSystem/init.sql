@@ -3,6 +3,10 @@
 -- Step 0: Create sequence for employee IDs
 CREATE SEQUENCE IF NOT EXISTS emp_id_seq START 1;
 
+-- Drop legacy enum check constraints that prevent inserting new leave types
+--ALTER TABLE leave_requests DROP CONSTRAINT IF EXISTS leave_requests_leave_type_check;
+--ALTER TABLE leave_requests DROP CONSTRAINT IF EXISTS leave_requests_status_check;
+
 
 INSERT INTO roles (role)
 VALUES 
