@@ -26,7 +26,7 @@ const DAY_LABELS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 export default function HolidayCalendarPage() {
   const { isAdmin } = useAuth()
-  useDocumentTitle('Holiday Calendar | Tektalis EMS')
+  useDocumentTitle('Holiday Calendar | TekSphere')
   const qc  = useQueryClient()
   const now = new Date()
   const currentYear = now.getFullYear()

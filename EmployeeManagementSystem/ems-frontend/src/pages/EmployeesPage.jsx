@@ -36,7 +36,7 @@ function SortIcon({ field, sortField, sortDir }) {
 export default function EmployeesPage() {
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
-  useDocumentTitle('Employees | Tektalis EMS')
+  useDocumentTitle('Employees | TekSphere')
   const [searchParams] = useSearchParams()
   const { isNewEmployeeSheetOpen, setNewEmployeeSheetOpen } = useUIStore()
   const [activeTab,  setActiveTab]  = useState(() => {

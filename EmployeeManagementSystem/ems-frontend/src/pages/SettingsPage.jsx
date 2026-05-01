@@ -15,7 +15,7 @@ import '../styles/settings.css'
 
 export default function SettingsPage() {
   const { user, logout }       = useAuth()
-  useDocumentTitle('Settings | Tektalis EMS')
+  useDocumentTitle('Settings | TekSphere')
   const { theme, toggleTheme } = useTheme()
   const navigate               = useNavigate()
   const [logoutConfirm, setLogoutConfirm] = useState(false)

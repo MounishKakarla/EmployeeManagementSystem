@@ -29,7 +29,7 @@ const TABS = [
 
 export default function AttendancePage() {
   const { isAdmin, isManager } = useAuth()
-  useDocumentTitle('Attendance | Tektalis EMS')
+  useDocumentTitle('Attendance | TekSphere')
   const qc = useQueryClient()
 
   const canManage  = isAdmin() || isManager()

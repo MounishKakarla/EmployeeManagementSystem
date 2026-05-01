@@ -42,7 +42,7 @@ const PAGE_SIZE = 10
 
 export default function LeavePage() {
   const { user, isAdmin, isManager } = useAuth()
-  useDocumentTitle('Leave Requests | Tektalis EMS')
+  useDocumentTitle('Leave Requests | TekSphere')
   const qc = useQueryClient()
   const canManage = isAdmin() || isManager()
 

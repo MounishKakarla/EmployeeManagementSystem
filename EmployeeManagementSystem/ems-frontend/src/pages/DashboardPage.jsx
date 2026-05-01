@@ -71,7 +71,7 @@ function StatCard({ icon: Icon, value, label, color, bg, onClick }) {
 export default function DashboardPage() {
   const { user, isAdmin, isManager } = useAuth()
   const navigate = useNavigate()
-  useDocumentTitle('Dashboard | Tektalis EMS')
+  useDocumentTitle('Dashboard | TekSphere')
 
   const { data: quoteData } = useQuery({
     queryKey: ['dashboardQuote'],
@@ -335,7 +335,7 @@ export default function DashboardPage() {
           <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center', padding: '32px 24px' }}>
               <UserCheck size={40} style={{ color: 'var(--text-muted)', margin: '0 auto 16px' }} />
-              <h3 style={{ marginBottom: 8 }}>Welcome to Tektalis EMS</h3>
+              <h3 style={{ marginBottom: 8 }}>Welcome to TekSphere</h3>
               <p style={{ color: 'var(--text-secondary)' }}>
                 Use the navigation bar to manage your attendance, leave and timesheets.
               </p>

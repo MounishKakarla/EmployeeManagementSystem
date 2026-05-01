@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Tektalis EMS",
-    "slug": "tektalis-ems",
+    "name": "TekSphere",
+    "slug": "teksphere",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/Tektalis_Icon_Square.png",
-    "scheme": "tektalis-ems",
+    "scheme": "teksphere",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./src/assets/Tektalis_Logo_White.png",

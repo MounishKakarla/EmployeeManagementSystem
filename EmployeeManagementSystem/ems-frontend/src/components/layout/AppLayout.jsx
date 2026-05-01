@@ -21,6 +21,7 @@ import NewEmployeeSheet     from '../ui/NewEmployeeSheet'
 import SessionWarningModal  from '../ui/SessionWarningModal'
 import logoWhite from '../../assets/Tektalis_Logo_White.svg'
 import logoDark  from '../../assets/Tektalis_Logo_Dark.svg'
+import logoIcon  from '../../assets/Tektalis_Icon_Square.png'
 import toast     from 'react-hot-toast'
 
 const NAV_ITEMS = [
@@ -139,8 +140,9 @@ export default function AppLayout() {
       {/* ── TOP NAVBAR ──────────────────────────────────────────────────────── */}
       <header className="topnav glass-panel">
         {/* Logo */}
-        <div className="topnav-logo" onClick={() => navigate('/dashboard')} title="Dashboard">
-          <img src={logoSrc} alt="Tektalis" />
+        <div className="topnav-logo" onClick={() => navigate('/dashboard')} title="Dashboard" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img src={logoIcon} alt="TekSphere" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px', color: 'var(--text-primary)' }}>TekSphere</span>
         </div>
 
         {/* Desktop nav links — hidden via CSS at ≤900px, NO inline style */}

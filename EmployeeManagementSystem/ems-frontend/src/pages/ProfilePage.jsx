@@ -16,7 +16,7 @@ import '../styles/profile.css'
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
-  useDocumentTitle('My Profile | Tektalis EMS')
+  useDocumentTitle('My Profile | TekSphere')
 
   const [showPwdForm,  setShowPwdForm]  = useState(false)
   const [showCurrent,  setShowCurrent]  = useState(false)

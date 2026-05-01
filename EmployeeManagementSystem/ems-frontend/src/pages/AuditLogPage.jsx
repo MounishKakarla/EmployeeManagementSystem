@@ -37,7 +37,7 @@ function formatDateTime(ts) {
 }
 
 export default function AuditLogPage() {
-  useDocumentTitle('Audit Log | Tektalis EMS')
+  useDocumentTitle('Audit Log | TekSphere')
   const [page,         setPage]         = useState(0)
   const [searchUser,   setSearchUser]   = useState('')
   const [searchAction, setSearchAction] = useState('')

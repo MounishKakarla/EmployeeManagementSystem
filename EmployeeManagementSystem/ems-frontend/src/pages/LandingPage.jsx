@@ -4,8 +4,7 @@ import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useAuth } from '../context/AuthContext'
 import { useEffect, useState } from 'react'
 import { Users, Shield, Zap, BarChart3, Lock, Globe, ArrowRight, Sun, Moon, MessageSquare, Server, Database, CalendarDays, Umbrella, Timer } from 'lucide-react'
-import logoWhite from '../assets/Tektalis_Logo_White.svg'
-import logoDark from '../assets/Tektalis_Logo_Dark.svg'
+import logoIcon from '../assets/Tektalis_Icon_Square.png'
 import '../styles/landing.css'
 
 const FEATURES = [
@@ -48,7 +47,7 @@ function FeatureCard({ f }) {
 
 export default function LandingPage() {
   const navigate               = useNavigate()
-  useDocumentTitle('Welcome | Tektalis EMS')
+  useDocumentTitle('Welcome | TekSphere')
   const { theme, toggleTheme } = useTheme()
   const { isAuthenticated, isLoading } = useAuth()
   const [scrolled, setScrolled] = useState(false)
@@ -57,13 +56,13 @@ export default function LandingPage() {
   useEffect(() => { if (!isLoading && isAuthenticated) navigate('/dashboard',{replace:true}) }, [isAuthenticated,isLoading,navigate])
   if (isLoading) return null
 
-  const logoSrc = theme === 'dark' ? logoWhite : logoDark
 
   return (
     <div className="landing">
       <nav className={`landing-nav ${scrolled?'scrolled':''}`}>
-        <div className="landing-nav-logo" onClick={()=>navigate('/')}>
-          <img src={logoSrc} alt="Tektalis EMS" style={{ height: 32, display: 'block' }} />
+        <div className="landing-nav-logo" onClick={()=>navigate('/')} style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <img src={logoIcon} alt="TekSphere" style={{ height:32, width:32, borderRadius:6, objectFit:'cover', display:'block' }} />
+          <span style={{ fontWeight:700, fontSize:16, letterSpacing:'-0.3px' }}>TekSphere</span>
         </div>
         <div className="landing-nav-right">
           <button className="btn-icon" onClick={toggleTheme} title="Toggle theme">{theme==='dark'?<Sun size={15}/>:<Moon size={15}/>}</button>
@@ -105,8 +104,11 @@ export default function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <img src={logoSrc} alt="Tektalis EMS" style={{ height: 28, display: 'block' }} />
-        <span className="landing-footer-copy">© {new Date().getFullYear()} Tektalis. Employee Management System.</span>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <img src={logoIcon} alt="TekSphere" style={{ height:28, width:28, borderRadius:4, objectFit:'cover', display:'block' }} />
+          <span style={{ fontWeight:700, fontSize:15 }}>TekSphere</span>
+        </div>
+        <span className="landing-footer-copy">© {new Date().getFullYear()} TekSphere. Employee Management System.</span>
       </footer>
 
       <style>{`.flip-card{perspective:1000px;cursor:pointer;height:230px}.flip-card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .45s cubic-bezier(.4,0,.2,1)}.flip-face{position:absolute;inset:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box}.flip-back{transform:rotateY(180deg);background:var(--accent)!important;border:none!important;justify-content:center}.flip-hint{font-size:11px;color:var(--text-muted);margin-top:auto;padding-top:10px}`}</style>

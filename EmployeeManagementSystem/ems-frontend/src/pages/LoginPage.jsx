@@ -19,7 +19,7 @@ const ROLE_INFO = [
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth()
   const { theme, toggleTheme }     = useTheme()
-  useDocumentTitle('Login | Tektalis EMS')
+  useDocumentTitle('Login | TekSphere')
   const navigate                   = useNavigate()
   const [loading,  setLoading]     = useState(false)
   const [apiError, setApiError]    = useState('')
