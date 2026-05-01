@@ -6,10 +6,16 @@ import { useRouter } from 'expo-router'
 import { notificationAPI } from '../api'
 import { useThemeColors } from '../hooks/useThemeColors'
 
-import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
 
 const IS_EXPO_GO = Constants.appOwnership === 'expo'
+
+let Notifications: any = null
+if (!IS_EXPO_GO) {
+  try {
+    Notifications = require('expo-notifications')
+  } catch (e) {}
+}
 
 export default function BellButton() {
   const router = useRouter()
