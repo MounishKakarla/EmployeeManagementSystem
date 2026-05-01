@@ -52,7 +52,7 @@ export default function EmployeeSideSheet({ empId, isInactiveView, onClose }) {
   })
 
   const employee = data?.data
-  const currentRoles = rolesData?.data || []
+  const currentRoles = rolesData?.data || employee?.roles || []
   const assignableRoles = ALL_ROLES.filter(r => !currentRoles.includes(r))
   const removableRoles = ALL_ROLES.filter(r => currentRoles.includes(r))
   const isSelf = user?.empId === employee?.empId
