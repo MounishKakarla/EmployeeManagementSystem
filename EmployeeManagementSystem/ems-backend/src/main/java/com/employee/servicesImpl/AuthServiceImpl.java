@@ -110,11 +110,13 @@ public class AuthServiceImpl implements AuthService {
         Employee emp = user.getEmployee();
         List<String> roles = userRoleRepository.findByEmployeeEmpId(empId)
                 .stream().map(r -> r.getRole().getRole().name()).toList();
-        return Map.of(
-                "empId",        emp.getEmpId(),
-                "name",         emp.getName(),
-                "companyEmail", emp.getCompanyEmail(),
-                "roles",        roles);
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("empId", emp.getEmpId());
+        response.put("name", emp.getName());
+        response.put("companyEmail", emp.getCompanyEmail());
+        response.put("roles", roles);
+        response.put("profileImage", emp.getProfileImage());
+        return response;
     }
 
     @Override
