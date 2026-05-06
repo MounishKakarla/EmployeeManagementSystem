@@ -1,43 +1,28 @@
-"""Audit service — mirrors AuditServiceImpl.java."""
+"""Audit service — business logic only; all DB access via AuditRepository."""
 
-from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session
 
 from models.audit_log import AuditLog
+from repositories.audit_repository import AuditRepository
 
 
 def log(db: Session, user: str, action: str, target: str) -> None:
-    db.add(AuditLog(user=user, action=action, target=target))
-    db.commit()
+    repo = AuditRepository(db)
+    repo.save(AuditLog(user=user, action=action, target=target))
+    repo.commit()
 
 
 def get_all_logs(db: Session, page: int, size: int):
-    query = db.query(AuditLog).order_by(AuditLog.created_at.desc())
-    total = query.count()
-    items = query.offset(page * size).limit(size).all()
-    return items, total
+    return AuditRepository(db).find_all_paginated(page * size, size)
 
 
 def search_logs(db: Session, user: str | None, action: str | None,
                 target: str | None, page: int, size: int):
-    query = db.query(AuditLog)
-    if user and user.strip():
-        query = query.filter(AuditLog.user == user.strip())
-    if action and action.strip():
-        query = query.filter(sa_func.lower(AuditLog.action).like(f"%{action.strip().lower()}%"))
-    if target and target.strip():
-        query = query.filter(sa_func.lower(AuditLog.target).like(f"%{target.strip().lower()}%"))
-    query = query.order_by(AuditLog.created_at.desc())
-    total = query.count()
-    items = query.offset(page * size).limit(size).all()
-    return items, total
+    return AuditRepository(db).search(user, action, target, page * size, size)
 
 
 def get_logs_by_user(db: Session, emp_id: str, page: int, size: int):
-    query = db.query(AuditLog).filter(AuditLog.user == emp_id).order_by(AuditLog.created_at.desc())
-    total = query.count()
-    items = query.offset(page * size).limit(size).all()
-    return items, total
+    return AuditRepository(db).find_by_user(emp_id, page * size, size)
 
 
 def to_dto(a: AuditLog) -> dict:
