@@ -34,3 +34,8 @@ class NotificationRepository(BaseRepository[Notification]):
             .filter(Notification.emp_id == emp_id, Notification.read == False)
             .all()
         )
+
+    def mark_all_read(self, emp_id: str) -> None:
+        self.db.query(Notification).filter(
+            Notification.emp_id == emp_id, Notification.read == False
+        ).update({"read": True})

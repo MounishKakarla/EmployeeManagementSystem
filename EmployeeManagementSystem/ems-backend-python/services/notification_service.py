@@ -51,6 +51,37 @@ def _push_to_device(db: Session, emp_id: str, title: str, body: str,
         logger.warning("Push failed → %s : %s", emp_id, e)
 
 
+def _to_dto(n) -> dict:
+    return {
+        "id": n.id, "empId": n.emp_id, "title": n.title, "body": n.body,
+        "category": n.category, "relatedId": n.related_id,
+        "read": n.read, "createdAt": n.created_at.isoformat() if n.created_at else None,
+    }
+
+
+def get_my_notifications(db: Session, emp_id: str, page: int, size: int):
+    items, total = NotificationRepository(db).find_by_emp_paginated(emp_id, page * size, size)
+    return [_to_dto(n) for n in items], total
+
+
+def get_unread_count(db: Session, emp_id: str) -> int:
+    return NotificationRepository(db).count_unread(emp_id)
+
+
+def mark_notification_read(db: Session, notification_id: int, emp_id: str) -> None:
+    repo = NotificationRepository(db)
+    n = repo.find_by_id(notification_id)
+    if n and n.emp_id == emp_id:
+        n.read = True
+        repo.commit()
+
+
+def mark_all_read(db: Session, emp_id: str) -> None:
+    repo = NotificationRepository(db)
+    repo.mark_all_read(emp_id)
+    repo.commit()
+
+
 def send_leave_status_notification(db: Session, emp_id: str, status: str,
                                    leave_type: str, review_notes: str | None,
                                    leave_id: int | None) -> None:
