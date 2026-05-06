@@ -1,0 +1,38 @@
+# FastAPI & Server
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Validation & Config
+pydantic
+pydantic-settings
+python-dotenv
+email-validator
+
+# File uploads
+python-multipart
+
+# Excel import
+openpyxl
+
+# Email
+aiosmtplib
+
+# HTTP client (push notifications)
+httpx
+
+# Scheduler
+apscheduler
+
+# Chatbot dependencies
+groq
+pdfplumber
+pandas
+requests
