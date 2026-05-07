@@ -1,7 +1,12 @@
 // src/api/index.js
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const normalizeBaseUrl = (url, fallback = '/api') => {
+  const value = (url || fallback).trim().replace(/\/+$/, '')
+  return value || fallback
+}
+
+const BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL)
 
 const ACCESS_KEY  = 'ems_access_token'
 const REFRESH_KEY = 'ems_refresh_token'
@@ -196,6 +201,7 @@ export const holidayAPI = {
   add:             (data)        => api.post('/ems/holidays', data),
   update:          (id, data)    => api.put(`/ems/holidays/${id}`, data),
   delete:          (id)          => api.delete(`/ems/holidays/${id}`),
+  deleteByYear:    (year)        => api.delete(`/ems/holidays/year/${year}`),
   getNonWorking:   (start, end)  => api.get('/ems/holidays/non-working', { params: { start, end } }),
 }
 

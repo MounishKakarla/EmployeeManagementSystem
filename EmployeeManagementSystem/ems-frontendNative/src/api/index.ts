@@ -86,6 +86,12 @@ export const timesheetAPI = {
 // ── Holidays ──────────────────────────────────────────────────────────────────
 export const holidayAPI = {
   getByYear: (year: number) => client.get('/ems/holidays', { params: { year } }),
+  add:       (data: Record<string, unknown>) => client.post('/ems/holidays', data),
+  update:    (id: number, data: Record<string, unknown>) => client.put(`/ems/holidays/${id}`, data),
+  delete:    (id: number) => client.delete(`/ems/holidays/${id}`),
+  deleteByYear: (year: number) => client.delete(`/ems/holidays/year/${year}`),
+  getNonWorking: (start: string, end: string) =>
+    client.get('/ems/holidays/non-working', { params: { start, end } }),
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────

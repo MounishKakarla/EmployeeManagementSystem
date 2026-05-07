@@ -28,9 +28,17 @@ const DASHBOARD_QUOTES = [
 ]
 
 async function fetchQuoteFromApi() {
-  const response = await fetch('https://api.quotable.io/random?tags=success|inspirational|motivational')
-  if (!response.ok) throw new Error('Failed to fetch quote')
-  return response.json()
+  try {
+    const response = await fetch('https://api.quotable.io/random?tags=success|inspirational|motivational', {
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    })
+    if (!response.ok) throw new Error('Failed to fetch quote')
+    return response.json()
+  } catch (error) {
+    // Network error or timeout - return null to fall back to local quotes
+    console.warn('Failed to fetch external quote, using local fallback:', error.message)
+    return null
+  }
 }
 
 function hashString(value) {

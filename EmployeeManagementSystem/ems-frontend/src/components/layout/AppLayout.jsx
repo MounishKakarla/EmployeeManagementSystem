@@ -82,6 +82,11 @@ export default function AppLayout() {
     setMobileOpen(false)
   }, [location.pathname])
 
+  // Close palette (command/search) on route change
+  useEffect(() => {
+    setPaletteOpen(false)
+  }, [location.pathname, setPaletteOpen])
+
   const handleLogout = async () => {
     await logout()
     toast.success('Signed out successfully')

@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import FocusTrap from 'focus-trap-react'
 import { Search, LayoutDashboard, Users, UserPlus, Settings, User, Command } from 'lucide-react'
 import { employeeAPI } from '../../api'
 import { useAuth } from '../../context/AuthContext'
+import { useUIStore } from '../../store/uiStore'
 export default function CommandPalette({ open, onClose }) {
   const [query,setQuery]=useState(''); const [selectedIndex,setSelectedIndex]=useState(0)
-  const inputRef=useRef(null); const navigate=useNavigate(); const [_,setSearchParams]=useSearchParams(); const {isAdmin,isManager}=useAuth()
+  const inputRef=useRef(null); const navigate=useNavigate(); const {isAdmin,isManager}=useAuth()
+  const { openEmployeeSheet } = useUIStore()
   useEffect(()=>{if(open){setQuery('');setSelectedIndex(0);setTimeout(()=>inputRef.current?.focus(),100)}},[open])
   const STATIC_ACTIONS=[
     {id:'dashboard',icon:LayoutDashboard,label:'Go to Dashboard',onSelect:()=>navigate('/dashboard')},
@@ -20,7 +22,7 @@ export default function CommandPalette({ open, onClose }) {
   const{data,isFetching}=useQuery({queryKey:['cmd-search',query],queryFn:()=>employeeAPI.search({name:query,page:0,size:5}),enabled:open&&query.trim().length>1&&(isAdmin()||isManager())})
   const employeeResults=data?.data?.content||[]
   const filteredActions=STATIC_ACTIONS.filter(a=>a.label.toLowerCase().includes(query.toLowerCase()))
-  const items=[];if(employeeResults.length>0){items.push({type:'header',label:'Employees'});employeeResults.forEach(emp=>items.push({type:'item',id:`emp-${emp.empId}`,icon:User,label:emp.name,subtitle:`${emp.empId} • ${emp.department}`,onSelect:()=>{setSearchParams(p=>{const n=new URLSearchParams(p);n.set('empId',emp.empId);return n})}}))}
+  const items=[];if(employeeResults.length>0){items.push({type:'header',label:'Employees'});employeeResults.forEach(emp=>items.push({type:'item',id:`emp-${emp.empId}`,icon:User,label:emp.name,subtitle:`${emp.empId} • ${emp.department}`,onSelect:()=>{openEmployeeSheet(emp.empId)}}))}
   if(filteredActions.length>0){items.push({type:'header',label:'Quick Actions'});filteredActions.forEach(a=>items.push({type:'item',...a}))}
   const selectableItems=items.filter(i=>i.type==='item')
   useEffect(()=>{setSelectedIndex(0)},[query])

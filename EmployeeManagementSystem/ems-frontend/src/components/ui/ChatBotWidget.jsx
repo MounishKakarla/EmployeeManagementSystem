@@ -5,7 +5,14 @@ import { useUIStore } from '../../store/uiStore'
 import FocusTrap from 'focus-trap-react'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
-const CHATBOT_URL  = import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:8000/api/chatbot'
+const normalizeChatbotUrl = (url) => {
+  const base = (url || '/api/chatbot').trim().replace(/\/+$/, '')
+  if (base.endsWith('/api/chatbot')) return base
+  if (base.endsWith('/api')) return `${base}/chatbot`
+  return `${base}/api/chatbot`
+}
+
+const CHATBOT_URL  = normalizeChatbotUrl(import.meta.env.VITE_CHATBOT_API_URL)
 const COLORS       = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316']
 const STORAGE_KEY  = 'aura_chat_history'
 const SESSIONS_KEY = 'aura_chat_sessions'

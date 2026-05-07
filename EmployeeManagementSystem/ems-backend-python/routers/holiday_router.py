@@ -11,11 +11,13 @@ from services import holiday_service
 router = APIRouter(prefix="/ems/holidays", tags=["Holiday"])
 
 
+@router.get("")
 @router.get("/")
 def list_holidays(year: int = Query(...), user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     return holiday_service.get_holidays_by_year(db, year)
 
 
+@router.post("")
 @router.post("/")
 def add(dto: HolidayCalendarDTO, user: dict = Depends(require_role("ADMIN")), db: Session = Depends(get_db)):
     return holiday_service.add_holiday(db, dto.model_dump(), user["emp_id"])

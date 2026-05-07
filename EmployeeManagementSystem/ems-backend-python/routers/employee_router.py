@@ -1,14 +1,14 @@
 """Employee router — mirrors EmployeeController.java."""
 
-from datetime import date
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.dependencies import get_current_user, require_role
 from core.pagination import spring_page_response
-from schemas.employee import EmployeeCreate, EmployeeUpdate, ProfileImageUpdate
+from schemas.employee import EmployeeCreate, EmployeeUpdate
 from services import employee_service
 
 router = APIRouter(prefix="/ems", tags=["Employee"])
@@ -58,16 +58,20 @@ def inactive_by_id(empId: str, user: dict = Depends(require_role("ADMIN", "MANAG
 @router.delete("/employee/{empId}")
 def deactivate(empId: str, user: dict = Depends(require_role("ADMIN")), db: Session = Depends(get_db)):
     employee_service.delete_employee(db, empId, user["emp_id"])
-    return {"message": f"Employee {empId} deactivated"}
+    return PlainTextResponse("Employee deactivated successfully")
 
 
 @router.patch("/update/{empId}")
 def update(empId: str, dto: EmployeeUpdate, user: dict = Depends(get_current_user),
            db: Session = Depends(get_db)):
+    roles = user.get("roles", [])
+    if empId != user["emp_id"] and not any(role in roles for role in ("ADMIN", "MANAGER")):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     return employee_service.update_fields(db, empId, dto.model_dump(exclude_none=True), user["emp_id"])
 
 
 @router.put("/profile/image")
-def update_image(dto: ProfileImageUpdate, user: dict = Depends(get_current_user),
+def update_image(body: dict = Body(...), user: dict = Depends(get_current_user),
                  db: Session = Depends(get_db)):
-    return employee_service.update_profile_image(db, user["emp_id"], dto.profileImage)
+    image = body.get("profileImage") or body.get("image")
+    return employee_service.update_profile_image(db, user["emp_id"], image)

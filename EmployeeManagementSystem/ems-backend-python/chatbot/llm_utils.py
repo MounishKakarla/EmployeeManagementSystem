@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 SENSITIVE_KEYWORDS = [
     "password", "passwd", "pwd", "secret", "token",
@@ -109,6 +110,9 @@ def validate_sql(sql: str) -> tuple[bool, str]:
 
 
 def get_sql_query_from_nl(prompt: str, schema: dict, db_type: str) -> str | None:
+    if not GROQ_API_KEY:
+        raise RuntimeError("GROQ_API_KEY is not configured for the chatbot.")
+
     schema_parts = []
     for table, cols in schema.items():
         col_strings = []
@@ -147,12 +151,14 @@ SQL:"""
 
     try:
         response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
+            GROQ_URL,
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             json={"model": "llama-3.3-70b-versatile",
                   "messages": [{"role": "user", "content": full_prompt}],
                   "temperature": 0},
+            timeout=45,
         )
+        response.raise_for_status()
         sql = response.json()["choices"][0]["message"]["content"].strip()
         sql = re.sub(r"```sql\s*", "", sql, flags=re.IGNORECASE)
         sql = re.sub(r"```\s*", "", sql)
@@ -165,16 +171,18 @@ Regenerate a SINGLE valid SQL SELECT for: {prompt}
 Schema: {schema_text}
 Output ONLY raw SQL."""
             retry = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
+                GROQ_URL,
                 headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
                 json={"model": "llama-3.3-70b-versatile",
                       "messages": [{"role": "user", "content": retry_prompt}],
                       "temperature": 0},
+                timeout=45,
             )
+            retry.raise_for_status()
             sql = retry.json()["choices"][0]["message"]["content"].strip()
             sql = re.sub(r"```sql\s*", "", sql, flags=re.IGNORECASE)
             sql = re.sub(r"```\s*", "", sql)
             sql = sql.strip().rstrip(";")
         return sql
-    except Exception:
-        return None
+    except Exception as exc:
+        raise RuntimeError(f"Groq SQL generation failed: {exc}") from exc

@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ems-backend-609x.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://ems-backend-python.onrender.com/api"
       }
     },
     "preview": {
@@ -18,7 +18,7 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ems-backend-609x.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://ems-backend-python.onrender.com/api"
       }
     },
     "production": {
@@ -30,7 +30,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ems-backend-609x.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://ems-backend-python.onrender.com/api"
       }
     }
   },

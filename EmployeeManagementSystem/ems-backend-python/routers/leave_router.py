@@ -1,18 +1,19 @@
 """Leave router — mirrors LeaveController.java."""
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.dependencies import get_current_user, require_role
 from core.pagination import spring_page_response
-from schemas.leave import LeaveRequestCreate, LeaveReviewRequest, LeaveGrantRequest
+from schemas.leave import LeaveRequestCreate, LeaveGrantRequest
 from services import leave_service
 
 router = APIRouter(prefix="/ems/leaves", tags=["Leave"])
 
 
+@router.post("")
 @router.post("/")
 def submit(dto: LeaveRequestCreate, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     return leave_service.submit_leave(db, user["emp_id"], dto.model_dump())
@@ -51,9 +52,13 @@ def all_leaves(empId: Optional[str] = None, status: Optional[str] = None,
 
 
 @router.put("/{id}/review")
-def review(id: int, req: LeaveReviewRequest, user: dict = Depends(require_role("ADMIN", "MANAGER")),
+def review(id: int,
+           action: str = Query(...),
+           body: dict | None = Body(None),
+           user: dict = Depends(require_role("ADMIN", "MANAGER")),
            db: Session = Depends(get_db)):
-    return leave_service.review_leave(db, id, req.action.value, user["emp_id"], req.reviewNotes)
+    notes = body.get("reviewNotes") if body else None
+    return leave_service.review_leave(db, id, action, user["emp_id"], notes)
 
 
 @router.get("/balance/{empId}")

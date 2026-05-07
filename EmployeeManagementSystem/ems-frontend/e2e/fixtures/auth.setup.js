@@ -11,17 +11,17 @@ const __dirname  = path.dirname(__filename);
 
 export const ADMIN_FILE = path.join(__dirname, '../.auth/admin.json');
 
-const BACKEND_URL = 'https://ems-backend-609x.onrender.com';
+const BACKEND_URL = process.env.VITE_API_BASE_URL || '/api';
 
 setup('authenticate as admin', async ({ page, request }) => {
-  // ── Step 1: Wake up the Render backend (free tier spins down after 15min) ──
-  console.log('Waking up Render backend…');
+  // Step 1: ensure the FastAPI backend is reachable.
+  console.log('Checking Python backend health...');
   for (let i = 0; i < 10; i++) {
     try {
-      const res = await request.get(`${BACKEND_URL}/actuator/health`, { timeout: 10000 });
-      if (res.ok()) { console.log('Backend is up ✅'); break; }
+      const res = await request.get(`${BACKEND_URL}/health`, { timeout: 10000 });
+      if (res.ok()) { console.log('Backend is up'); break; }
     } catch {}
-    console.log(`  Attempt ${i + 1}/10 — backend not ready yet, waiting 5s…`);
+    console.log(`  Attempt ${i + 1}/10 - backend not ready yet, waiting 5s...`);
     await page.waitForTimeout(5000);
   }
 

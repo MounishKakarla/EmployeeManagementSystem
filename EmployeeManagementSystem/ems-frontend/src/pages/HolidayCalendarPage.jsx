@@ -8,18 +8,9 @@ import Modal from '../components/ui/Modal'
 import { BaseInput } from '../components/ui/BaseComponents'
 import { CalendarDays, Plus, Trash2, Pencil, Sun, Eraser } from 'lucide-react'
 import toast from 'react-hot-toast'
-import api from '../api'
+import { holidayAPI } from '../api'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import '../styles/holiday.css'
-
-// inline API calls since holidayAPI is a small set
-const holidayAPI = {
-  getByYear:     (year)    => api.get('/ems/holidays', { params: { year } }),
-  add:           (data)    => api.post('/ems/holidays', data),
-  update:        (id, d)   => api.put(`/ems/holidays/${id}`, d),
-  delete:        (id)      => api.delete(`/ems/holidays/${id}`),
-  deleteByYear:  (year)    => api.delete(`/ems/holidays/year/${year}`),
-}
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const DAY_LABELS  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']

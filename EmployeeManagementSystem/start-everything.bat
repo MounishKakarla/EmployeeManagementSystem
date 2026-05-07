@@ -4,11 +4,11 @@ echo Starting Employee Management System (ALL SERVICES)
 echo ========================================================
 
 echo.
-echo [1/3] Starting Database, Backend, Python Chatbot, and React Web...
+echo [1/3] Starting Database, Python Backend, and React Web...
 docker compose up -d
 
 echo.
-echo [2/3] Waiting for Spring Boot to create tables and injecting data...
+echo [2/3] Waiting for FastAPI to create tables and injecting data...
 echo (Waiting 30 seconds for backend schema generation...)
 timeout /t 30 /nobreak >nul
 docker exec -i ems-postgres psql -U postgres -d EMSNew < init.sql

@@ -5,8 +5,13 @@ import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { router } from 'expo-router'
 
-// Set EXPO_PUBLIC_API_URL in .env to override (e.g. http://192.168.x.x:8080 for local, or your prod domain)
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://ems-backend-609x.onrender.com'
+// Set EXPO_PUBLIC_API_URL to the FastAPI base URL, including /api when needed.
+const normalizeBaseUrl = (url?: string) => {
+  const base = (url ?? 'http://localhost:8000/api').trim().replace(/\/+$/, '')
+  return base.endsWith('/api') ? base : `${base}/api`
+}
+
+export const BASE_URL = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL)
 
 
 export const TOKEN_KEY   = 'ems_access_token'

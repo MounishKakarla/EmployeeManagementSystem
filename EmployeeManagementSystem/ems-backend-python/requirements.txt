@@ -9,6 +9,7 @@ psycopg2-binary
 # Auth
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==4.0.1
 
 # Validation & Config
 pydantic
@@ -24,6 +25,7 @@ openpyxl
 
 # Email
 aiosmtplib
+Jinja2
 
 # HTTP client (push notifications)
 httpx

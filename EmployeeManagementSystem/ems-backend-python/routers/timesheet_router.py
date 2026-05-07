@@ -2,13 +2,13 @@
 
 from datetime import date
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.dependencies import get_current_user, require_role
 from core.pagination import spring_page_response
-from schemas.timesheet import TimesheetDTO, TimesheetReviewRequest, TimesheetSubmitRequest
+from schemas.timesheet import TimesheetDTO
 from services import timesheet_service
 
 router = APIRouter(prefix="/ems/timesheets", tags=["Timesheet"])
@@ -20,18 +20,19 @@ def current_week(user: dict = Depends(get_current_user), db: Session = Depends(g
 
 
 @router.get("/week")
-def week(weekStartDate: str = Query(...), user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return timesheet_service.get_week(db, user["emp_id"], date.fromisoformat(weekStartDate))
+def week(date_param: str = Query(..., alias="date"), user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    return timesheet_service.get_week(db, user["emp_id"], date.fromisoformat(date_param))
 
 
+@router.post("")
 @router.post("/")
 def save(dto: TimesheetDTO, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     return timesheet_service.save_entry(db, user["emp_id"], dto.model_dump())
 
 
 @router.post("/submit")
-def submit(req: TimesheetSubmitRequest, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return timesheet_service.submit_week(db, user["emp_id"], req.weekStartDate)
+def submit(weekStartDate: str = Query(...), user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    return timesheet_service.submit_week(db, user["emp_id"], date.fromisoformat(weekStartDate))
 
 
 @router.get("/my")
@@ -71,6 +72,9 @@ def delete(id: int, user: dict = Depends(get_current_user), db: Session = Depend
 
 
 @router.put("/{id}/review")
-def review(id: int, req: TimesheetReviewRequest,
+def review(id: int,
+           action: str = Query(...),
+           body: dict | None = Body(None),
            user: dict = Depends(require_role("ADMIN", "MANAGER")), db: Session = Depends(get_db)):
-    return timesheet_service.review_entry(db, id, req.action.value, user["emp_id"], req.reviewNotes)
+    notes = body.get("reviewNotes") if body else None
+    return timesheet_service.review_entry(db, id, action, user["emp_id"], notes)
